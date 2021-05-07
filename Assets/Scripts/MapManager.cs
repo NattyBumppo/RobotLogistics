@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -144,17 +145,18 @@ public class MapManager : MonoBehaviour
             }
         }
 
-        GenerateRandomConnections();
         HideUnconnectedNodes();
+        StartCoroutine(GenerateRandomConnections());
     }
-    
-    void GenerateRandomConnections()
+
+    IEnumerator GenerateRandomConnections()
     {
         int startIdxHoriz = numNodesHorizontal / 2;
         int startIdxVert = numNodesVertical / 2;
         int startIdxGlobal = GetGlobalIndexFromCoordinates(startIdxHoriz, startIdxVert);
 
         List<GraphNode> nodesAddedSoFar = new List<GraphNode> { graph[startIdxGlobal] };
+        graph[startIdxGlobal].go.SetActive(true);
 
         int connectionsMade = 0;
 
@@ -182,10 +184,15 @@ public class MapManager : MonoBehaviour
                 if (!nodesAddedSoFar.Contains(neighborToConnect))
                 {
                     nodesAddedSoFar.Add(neighborToConnect);
+                    neighborToConnect.go.SetActive(true);
                 }
             }
-        }
 
+            if (connectionsMade % 5 == 0)
+            {
+                yield return null;
+            }
+        }
     }
 
     void TestConnectingNeighbors()
