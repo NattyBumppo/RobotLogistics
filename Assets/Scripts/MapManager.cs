@@ -8,6 +8,7 @@ public struct GraphNode
     public int horizIdx;
     public int vertIdx;
     public List<int> connectedNeighborIndices;
+    public List<int> connectorIndices;
     public Vector3 pos;
     public GameObject go;
 }
@@ -61,7 +62,14 @@ public class MapManager : MonoBehaviour
             GameObject go = Instantiate(nodeConnectorPrefab, connectorPos, Quaternion.identity);
             go.transform.SetParent(nodeConnectorParent);
 
+            // Start connectors as hidden
+            go.SetActive(false);
+
+            // Add reference to these connectors so that we can turn them on later
+            graph[graphIdx0].connectorIndices.Add(nodeConnectors.Count);
+
             nodeConnectors.Add(go);
+
         }
 
         graph[graphIdx0].connectedNeighborIndices.Add(graphIdx1);
@@ -134,6 +142,7 @@ public class MapManager : MonoBehaviour
                 GraphNode node = new GraphNode();
                 node.globalIndex = nodeCount;
                 node.connectedNeighborIndices = new List<int>();
+                node.connectorIndices = new List<int>();
                 node.pos = nodePos;
                 node.go = go;
                 node.horizIdx = horizIdx;
@@ -145,11 +154,12 @@ public class MapManager : MonoBehaviour
             }
         }
 
-        HideUnconnectedNodes();
-        StartCoroutine(GenerateRandomConnections());
+        HideAllNodes();
+        GenerateRandomConnections();
+        StartCoroutine(ActivateNodesAndConnections());
     }
 
-    IEnumerator GenerateRandomConnections()
+    void GenerateRandomConnections()
     {
         int startIdxHoriz = numNodesHorizontal / 2;
         int startIdxVert = numNodesVertical / 2;
@@ -187,12 +197,51 @@ public class MapManager : MonoBehaviour
                     neighborToConnect.go.SetActive(true);
                 }
             }
-
-            if (connectionsMade % 5 == 0)
-            {
-                yield return null;
-            }
         }
+    }
+
+    IEnumerator ActivateNodesAndConnections()
+    {
+        // Start at start node for graph (same as for GenerateRandomConnections())
+        int startIdxHoriz = numNodesHorizontal / 2;
+        int startIdxVert = numNodesVertical / 2;
+        int startIdxGlobal = GetGlobalIndexFromCoordinates(startIdxHoriz, startIdxVert);
+
+        // Starting with the start node, gradually branch out, until all of the nodes have been activated
+        List<int> activatedNodeIndices = new List<int>();
+
+        List<int> nodesToActivateIndices = new List<int> { startIdxGlobal };
+
+        while(nodesToActivateIndices.Count > 0)
+        {
+            // Get next node to activate
+            GraphNode nodeToActivate = graph[nodesToActivateIndices[0]];
+            nodesToActivateIndices.RemoveAt(0);
+            
+            // Activate node
+            nodeToActivate.go.SetActive(true);
+            activatedNodeIndices.Add(nodeToActivate.globalIndex);
+
+            // Activate connections
+            foreach (int connectorIdx in nodeToActivate.connectorIndices)
+            {
+                nodeConnectors[connectorIdx].SetActive(true);
+            }
+
+            // Add neighbors to list of nodes to activate, if they're still inactive
+            foreach (int neighborIdx in nodeToActivate.connectedNeighborIndices)
+            {
+                if (!activatedNodeIndices.Contains(neighborIdx) && !nodesToActivateIndices.Contains(neighborIdx))
+                {
+                    nodesToActivateIndices.Add(neighborIdx);
+                }
+            }
+
+            yield return null;
+
+        }
+
+        Debug.Log("All nodes and connections activated!");
     }
 
     void TestConnectingNeighbors()
@@ -221,6 +270,14 @@ public class MapManager : MonoBehaviour
             {
                 graph[i].go.SetActive(false);
             }
+        }
+    }
+
+    void HideAllNodes()
+    {
+        for (int i = 0; i < graph.Count; i++)
+        {
+            graph[i].go.SetActive(false);
         }
     }
 
