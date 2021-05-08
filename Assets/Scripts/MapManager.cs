@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 public struct GraphNode
@@ -34,6 +35,51 @@ public class MapManager : MonoBehaviour
 
     List<GraphNode> graph = new List<GraphNode>();
     List<GameObject> nodeConnectors = new List<GameObject>();
+
+    string GraphToString(List<GraphNode> graph)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        // Number of nodes on first line
+        sb.Append(graph.Count + "\n");
+
+        // Subsequently, list all of the nodes
+        foreach (GraphNode gn in graph)
+        {
+            sb.Append(GraphNodeToString(gn));
+        }
+
+        return sb.ToString();
+    }
+
+    string GraphNodeToString(GraphNode gn)
+    {
+        StringBuilder sb = new StringBuilder();
+
+        // Self as one line
+        sb.Append(gn.globalIndex + " " + gn.horizIdx + " " + gn.vertIdx + "\n");
+        
+        // Neighbor indices as another line
+        if (gn.connectedNeighborIndices.Count > 0)
+        {
+            for (int neighborIdx = 0; neighborIdx < gn.connectedNeighborIndices.Count; neighborIdx++)
+            {
+                sb.Append(gn.connectedNeighborIndices[neighborIdx]);
+
+                if (neighborIdx < gn.connectedNeighborIndices.Count - 1)
+                {
+                    sb.Append(" ");
+                }
+            }
+            sb.Append("\n");
+        }
+        else
+        {
+            Debug.LogError("Error: no neighbors for gn " + gn.globalIndex);
+        }
+
+        return sb.ToString();
+    }
 
     bool ConnectNodes(int graphIdx0, int graphIdx1, bool skipConnectionIfCrowded)
     {
@@ -238,10 +284,11 @@ public class MapManager : MonoBehaviour
             }
 
             yield return null;
-
         }
 
         Debug.Log("All nodes and connections activated!");
+
+        RemoveUnconnectedNodes();
     }
 
     void TestConnectingNeighbors()
@@ -281,15 +328,32 @@ public class MapManager : MonoBehaviour
         }
     }
 
-    // Start is called before the first frame update
+    void RemoveUnconnectedNodes()
+    {
+        for (int i = graph.Count-1; i >= 0; i--)
+        {
+            if (graph[i].connectedNeighborIndices.Count == 0)
+            {
+                graph.RemoveAt(i);
+            }
+        }
+    }
+
+    public GraphNode GetRandomNodeInGraph()
+    {
+        return graph[Random.Range(0, graph.Count)];
+    }
+
     void Start()
     {
         SetUpMap();
     }
 
-    // Update is called once per frame
     void Update()
     {
-        
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            Debug.Log(GraphToString(graph));
+        }
     }
 }
