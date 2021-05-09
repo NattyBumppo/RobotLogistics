@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.UI;
@@ -29,20 +30,20 @@ public enum WorkRequestResponseType
     FAILURE_OTHER
 }
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-public struct DataRequestPacket
-{
-    public UInt32 responseID;
-}
+//[StructLayout(LayoutKind.Sequential, Pack = 1)]
+//public struct DataRequestPacket
+//{
+//    public UInt32 responseID;
+//}
 
-public struct DataResponsePacket
-{
-    public Int32 packetLength;
-    public WorkRequestResponseType responseType;
-    public UInt32 responseID;
-    public UInt32 payloadSize;
-    public byte[] sensorDataPayload;
-}
+//public struct DataResponsePacket
+//{
+//    public Int32 packetLength;
+//    public WorkRequestResponseType responseType;
+//    public UInt32 responseID;
+//    public UInt32 payloadSize;
+//    public byte[] sensorDataPayload;
+//}
 
 public class NetworkServer : MonoBehaviour
 {
@@ -57,7 +58,7 @@ public class NetworkServer : MonoBehaviour
 
     private List<byte> captureBytes = new List<byte>();
     private bool captureBytesReady = false;
-    private DataRequestPacket captureRequestParameters = new DataRequestPacket();
+    //private DataRequestPacket captureRequestParameters = new DataRequestPacket();
     private bool captureRequested = false;
     public Camera cameraForNextCapture;
 
@@ -245,28 +246,28 @@ public class NetworkServer : MonoBehaviour
                     Debug.Log("Received request (" + bytes.Length + "B) from client.");
 
                     // Parse request from client
-                    DataRequestPacket drp;
-                    bool parseSuccess = BytesToDataRequest(bytes, out drp);
+                    //DataRequestPacket drp;
+                    bool parseSuccess = BytesToClientMessage(bytes);
 
                     Debug.Log("Parse success? " + parseSuccess);
 
-                    // Trigger test image
-                    captureBytesReady = false;
-                    captureRequested = true;
-                    captureRequestParameters = drp;
+                    //// Trigger test image
+                    //captureBytesReady = false;
+                    //captureRequested = true;
+                    //captureRequestParameters = drp;
 
-                    // Wait for image to be processed
-                    while (!captureBytesReady)
-                    {
-                        System.Threading.Thread.Sleep(100);
-                    }
+                    //// Wait for image to be processed
+                    //while (!captureBytesReady)
+                    //{
+                    //    System.Threading.Thread.Sleep(100);
+                    //}
 
-                    byte[] msg;
+                    //byte[] msg;
 
-                    // Make successful packet containing synthetic data payload
-                    msg = MakeDataResponsePacketBytes(WorkRequestResponseType.SUCCESS, drp.responseID, captureBytes.ToArray());
+                    //// Make successful packet containing synthetic data payload
+                    //msg = MakeDataResponsePacketBytes(WorkRequestResponseType.SUCCESS, drp.responseID, captureBytes.ToArray());
 
-
+                    byte[] msg = Encoding.Unicode.GetBytes("Received message successfully!");
                     stream.Write(msg, 0, msg.Length);
                     Debug.Log("Sent response (" + msg.Length + "B)");
                 }
@@ -289,33 +290,33 @@ public class NetworkServer : MonoBehaviour
         Console.Read();
     }
 
-    byte[] MakeDataResponsePacketBytes(WorkRequestResponseType responseType, UInt32 responseID, byte[] sensorDataPayload)
-    {
-        // Prepare struct
-        DataResponsePacket drp = new DataResponsePacket();
-        drp.packetLength = sensorDataPayload.Length + DATA_RESPONSE_HEADER_LENGTH_BYTES;
-        drp.responseType = responseType;
-        drp.responseID = responseID;
-        drp.payloadSize = (UInt32)sensorDataPayload.Length;
-        drp.sensorDataPayload = sensorDataPayload;
+    //byte[] MakeDataResponsePacketBytes(WorkRequestResponseType responseType, UInt32 responseID, byte[] sensorDataPayload)
+    //{
+    //    // Prepare struct
+    //    DataResponsePacket drp = new DataResponsePacket();
+    //    drp.packetLength = sensorDataPayload.Length + DATA_RESPONSE_HEADER_LENGTH_BYTES;
+    //    drp.responseType = responseType;
+    //    drp.responseID = responseID;
+    //    drp.payloadSize = (UInt32)sensorDataPayload.Length;
+    //    drp.sensorDataPayload = sensorDataPayload;
 
-        // Convert struct to bytes
-        byte[] packetLengthBytes = BitConverter.GetBytes(drp.packetLength);
-        byte[] statusBytes = new byte[1];
-        statusBytes[0] = (byte)drp.responseType;
-        byte[] responseIDBytes = BitConverter.GetBytes(drp.responseID);
-        byte[] payloadSizeBytes = BitConverter.GetBytes(drp.payloadSize);
+    //    // Convert struct to bytes
+    //    byte[] packetLengthBytes = BitConverter.GetBytes(drp.packetLength);
+    //    byte[] statusBytes = new byte[1];
+    //    statusBytes[0] = (byte)drp.responseType;
+    //    byte[] responseIDBytes = BitConverter.GetBytes(drp.responseID);
+    //    byte[] payloadSizeBytes = BitConverter.GetBytes(drp.payloadSize);
 
-        // Reverse all data endianness if it's not in network byte order (big endian)
-        if (BitConverter.IsLittleEndian)
-        {
-            Array.Reverse(packetLengthBytes);
-            Array.Reverse(responseIDBytes);
-            Array.Reverse(payloadSizeBytes);
-        }
+    //    // Reverse all data endianness if it's not in network byte order (big endian)
+    //    if (BitConverter.IsLittleEndian)
+    //    {
+    //        Array.Reverse(packetLengthBytes);
+    //        Array.Reverse(responseIDBytes);
+    //        Array.Reverse(payloadSizeBytes);
+    //    }
 
-        return CombineByteArrays(packetLengthBytes, statusBytes, responseIDBytes, payloadSizeBytes, drp.sensorDataPayload);
-    }
+    //    return CombineByteArrays(packetLengthBytes, statusBytes, responseIDBytes, payloadSizeBytes, drp.sensorDataPayload);
+    //}
 
     float SwapEndian(float input)
     {
@@ -331,30 +332,30 @@ public class NetworkServer : MonoBehaviour
         return BitConverter.ToUInt32(bytes, 0);
     }
 
-    private bool BytesToDataRequest(byte[] bytes, out DataRequestPacket drp)
+    private bool BytesToClientMessage(byte[] bytes)
     {
-        drp = new DataRequestPacket();
+        //drp = new DataRequestPacket();
 
-        // Make sure packet is the expected size
-        if (bytes.Length != DATA_REQUEST_PACKET_LENGTH_BYTES)
-        {
-            return false;
-        }
+        //// Make sure packet is the expected size
+        //if (bytes.Length != DATA_REQUEST_PACKET_LENGTH_BYTES)
+        //{
+        //    return false;
+        //}
 
-        // Parse packet
-        int size = Marshal.SizeOf(drp);
-        IntPtr ptr = Marshal.AllocHGlobal(size);
+        //// Parse packet
+        //int size = Marshal.SizeOf(drp);
+        //IntPtr ptr = Marshal.AllocHGlobal(size);
 
-        Marshal.Copy(bytes, 0, ptr, size);
+        //Marshal.Copy(bytes, 0, ptr, size);
 
-        drp = (DataRequestPacket)Marshal.PtrToStructure(ptr, drp.GetType());
-        Marshal.FreeHGlobal(ptr);
+        //drp = (DataRequestPacket)Marshal.PtrToStructure(ptr, drp.GetType());
+        //Marshal.FreeHGlobal(ptr);
 
-        // Fix endianness if necessary
-        if (BitConverter.IsLittleEndian)
-        {
-            drp.responseID = SwapEndian(drp.responseID);
-        }
+        //// Fix endianness if necessary
+        //if (BitConverter.IsLittleEndian)
+        //{
+        //    drp.responseID = SwapEndian(drp.responseID);
+        //}
 
         return true;
     }
