@@ -26,7 +26,7 @@ RenderSettings:
   m_AmbientIntensity: 1
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
-  m_SkyboxMaterial: {fileID: 10304, guid: 0000000000000000f000000000000000, type: 0}
+  m_SkyboxMaterial: {fileID: 0}
   m_HaloStrength: 0.5
   m_FlareStrength: 1
   m_FlareFadeSpeed: 3
@@ -123,6 +123,49 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &299231819
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 299231821}
+  - component: {fileID: 299231820}
+  m_Layer: 0
+  m_Name: NetworkServer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &299231820
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 299231819}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dab8e6287cd5ef449a21fda695812aa7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!4 &299231821
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 299231819}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -1.5360771, y: 3.1399925, z: -1.7776059}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 5
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &478221754
 GameObject:
   m_ObjectHideFlags: 0
@@ -340,7 +383,6 @@ GameObject:
   - component: {fileID: 1054112595}
   - component: {fileID: 1054112594}
   - component: {fileID: 1054112593}
-  - component: {fileID: 1054112592}
   m_Layer: 0
   m_Name: GroundPlane
   m_TagString: Untagged
@@ -348,20 +390,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!64 &1054112592
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1054112591}
-  m_Material: {fileID: 0}
-  m_IsTrigger: 0
-  m_Enabled: 1
-  serializedVersion: 4
-  m_Convex: 0
-  m_CookingOptions: 30
-  m_Mesh: {fileID: 10209, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!23 &1054112593
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -436,7 +464,7 @@ GameObject:
   - component: {fileID: 1225118258}
   - component: {fileID: 1225118257}
   m_Layer: 0
-  m_Name: Agent Manager
+  m_Name: AgentManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -457,6 +485,7 @@ MonoBehaviour:
   mm: {fileID: 1284730858}
   agentPrefab: {fileID: 1244818035609986718, guid: 93606d326ea482948b7935e4229636e3, type: 3}
   agentParent: {fileID: 478221755}
+  baseRenderTexture: {fileID: 8400000, guid: c4cf885e87bd1ab4896022199ff69378, type: 2}
 --- !u!4 &1225118258
 Transform:
   m_ObjectHideFlags: 0
@@ -503,7 +532,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   minX: -8
   maxX: 8
-  defaultY: 0.05
+  defaultY: 0.01
   minZ: -4
   maxZ: 4
   numNodesHorizontal: 24

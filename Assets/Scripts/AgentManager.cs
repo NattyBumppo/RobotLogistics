@@ -11,6 +11,7 @@ public struct AgentData
     public Vector3 latestPosition;
     public GameObject go;
     public int currentTaskID;
+    public RenderTexture renderTextureForCamera;
 }
 
 public struct DeliveryTask
@@ -25,11 +26,7 @@ public class AgentManager : MonoBehaviour
     public List<AgentData> agents = new List<AgentData>();
     public GameObject agentPrefab;
     public Transform agentParent;
-
-    void Start()
-    {
-
-    }
+    public RenderTexture baseRenderTexture;
 
     bool CreateAgent(Color color, string hostname, string preferredName, int port, Vector3 initialPosition)
     {
@@ -69,6 +66,11 @@ public class AgentManager : MonoBehaviour
 
         // No current task
         ad.currentTaskID = -1;
+
+        // Make a render texture for the agent to draw to
+        RenderTexture rt = new RenderTexture(baseRenderTexture);
+        ad.renderTextureForCamera = rt;
+        go.GetComponentInChildren<Camera>().targetTexture = rt;
 
         // Add to agents list so that we can keep track of it
         agents.Add(ad);
