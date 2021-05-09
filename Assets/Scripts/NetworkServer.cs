@@ -17,7 +17,8 @@ public enum AgentRequestType
     REQUEST_FOR_WORK,
     POSITION_UPDATE,
     TASK_COMPLETE,
-    REQUEST_FOR_CAMERA_DATA
+    REQUEST_FOR_CAMERA_DATA,
+    DEREGISTRATION
 }
 
 public enum WorkRequestResponseType

@@ -2,13 +2,25 @@ from datetime import datetime
 import enum
 import glob
 import os
+import signal
 import socket
 import struct
 import sys
 import tempfile
 
+class AgentRequestType(enum.IntEnum):
+    REGISTRATION = 0
+    REQUEST_FOR_WORK = 1
+    POSITION_UPDATE = 2
+    TASK_COMPLETE = 3
+    REQUEST_FOR_CAMERA_DATA = 4
+    DEREGISTRATION = 5
+
 class DataRequestStatusCode(enum.IntEnum):
     SUCCESS = 0
+    FAILURE_AGENT_TOO_FAR = 1
+    FAILURE_NO_TASKS = 2
+    FAILURE_OTHER = 3
 
 def recv_msg(sock):
     # Read message length and unpack it into an integer
@@ -112,11 +124,37 @@ def connect_and_send_request(ip, port, request_data):
 
     return response_data
 
+def make_registration_packet(my_color_rgb_float, my_preferred_name):
+    # First byte is registration type
+    # Next 12 bytes are color
+    # Next 16 bytes are name (right-padded with spaces)
+
+    if len(my_preferred_name) > 16:
+        # Trim name to 16 characters
+        print('Trimming name %s due to it being over 16 characters...' % my_preferred_name)
+        my_preferred_name = my_preferred_name[:16]
+        print('New name is %s' % my_preferred_name)
+
+    # Now, pad to 16 characters
+    my_preferred_name = my_preferred_name.ljust(16, ' ')
+
+    return struct.pack('!B3f16s', AgentRequestType.REGISTRATION, my_color_rgb_float[0], my_color_rgb_float[1], my_color_rgb_float[2], str.encode(my_preferred_name))
+
+def test_connect_and_register(ip, port):
+    bytes_to_send = make_registration_packet((0.0, 0.0, 1.0), 'TestAgent')
+    connect_and_send_request(ip, port, bytes_to_send)
+
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C')
+    sys.exit(0)
+
 def main():
+    signal.signal(signal.SIGINT, signal_handler)
+
     if len(sys.argv) != 3:
         print('Please specify an IP address (first argument) and a port (second argument)')
     else:
-        test_connect_and_send_request(sys.argv[1], int(sys.argv[2]))
+        test_connect_and_register(sys.argv[1], int(sys.argv[2]))
 
 if __name__ == '__main__':
     main()

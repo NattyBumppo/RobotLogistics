@@ -152,6 +152,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dab8e6287cd5ef449a21fda695812aa7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ipText: {fileID: 0}
+  portText: {fileID: 0}
+  ipTextToSet: 
+  portTextToSet: 
+  ipPortTextNeedsToBeSet: 0
+  cameraForNextCapture: {fileID: 0}
+  sensorDataByteBuffer: 
 --- !u!4 &299231821
 Transform:
   m_ObjectHideFlags: 0
