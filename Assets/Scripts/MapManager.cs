@@ -357,7 +357,7 @@ public class MapManager : MonoBehaviour
         return graph[Random.Range(0, graph.Count)];
     }
 
-    void Start()
+    public void PublicStart()
     {
         SetUpMap();
     }

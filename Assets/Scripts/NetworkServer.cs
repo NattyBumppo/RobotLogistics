@@ -49,8 +49,7 @@ public class NetworkServer : MonoBehaviour
     public System.Threading.Thread SocketThread;
     TcpListener server = null;
 
-    public Text ipText;
-    public Text portText;
+    public Text ipAndPortText;
 
     public string ipTextToSet;
     public string portTextToSet;
@@ -151,8 +150,7 @@ public class NetworkServer : MonoBehaviour
 
         if (ipPortTextNeedsToBeSet)
         {
-            ipText.text = ipTextToSet;
-            portText.text = portTextToSet;
+            ipAndPortText.text = ipTextToSet + "\t\t " + portTextToSet;
 
             ipPortTextNeedsToBeSet = false;
         }
@@ -457,10 +455,5 @@ public class NetworkServer : MonoBehaviour
 
 
         return response;
-    }
-
-    void Start()
-    {
-        
     }
 }

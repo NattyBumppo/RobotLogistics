@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -12,6 +13,8 @@ public struct AgentData
     public GameObject go;
     public int currentTaskID;
     public RenderTexture renderTextureForCamera;
+    public DateTime datetimeOfLastMessage;
+    public int tasksCompleted;
 }
 
 public struct DeliveryTask
@@ -66,6 +69,8 @@ public class AgentManager : MonoBehaviour
 
         // No current task
         ad.currentTaskID = -1;
+        ad.datetimeOfLastMessage = DateTime.UtcNow;
+        ad.tasksCompleted = 0;
 
         // Make a render texture for the agent to draw to
         RenderTexture rt = new RenderTexture(baseRenderTexture);
@@ -84,7 +89,7 @@ public class AgentManager : MonoBehaviour
 
         for (int i = 0; i < 20; i++)
         {
-            CreateAgent(colors[Random.Range(0, colors.Count)], "host" + i, "Agent " + i, 333, mm.GetRandomNodeInGraph().pos);
+            CreateAgent(colors[UnityEngine.Random.Range(0, colors.Count)], "host" + i, "Agent " + i, 333, mm.GetRandomNodeInGraph().pos);
         }
 
         //CreateAgent(Color.blue, "host0", "Agent 0", 333, mm.GetRandomNodeInGraph().pos);
@@ -107,6 +112,11 @@ public class AgentManager : MonoBehaviour
     }
 
     void AssignTaskTo(int taskID, int agentID)
+    {
+
+    }
+
+    public void PublicStart()
     {
 
     }
