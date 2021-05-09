@@ -28,6 +28,11 @@ public class MapManager : MonoBehaviour
 
     public GameObject nodePrefab;
     public GameObject nodeConnectorPrefab;
+    public GameObject hqPrefab;
+    public int hqNodeCoordinateHorizIdx;
+    public int hqNodeCoordinateVertIdx;
+    public int hqNodeCoordinateGlobalIdx;
+
     public int nodeConnectorsPerConnection;
 
     public Transform nodeParent;
@@ -199,6 +204,14 @@ public class MapManager : MonoBehaviour
                 nodeCount++;
             }
         }
+
+        // Add warehouse (HQ)
+        hqNodeCoordinateHorizIdx = numNodesHorizontal / 2;
+        hqNodeCoordinateVertIdx = numNodesVertical / 2;
+        hqNodeCoordinateGlobalIdx = GetGlobalIndexFromCoordinates(hqNodeCoordinateHorizIdx, hqNodeCoordinateVertIdx);
+        Vector3 hqPos = graph[hqNodeCoordinateGlobalIdx].pos;
+
+        GameObject hq = Instantiate(hqPrefab, hqPos, Quaternion.identity);
 
         HideAllNodes();
         GenerateRandomConnections();

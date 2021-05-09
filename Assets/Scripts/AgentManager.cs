@@ -80,9 +80,16 @@ public class AgentManager : MonoBehaviour
 
     void TestAddingAgents()
     {
-        CreateAgent(Color.blue, "host0", "Agent 0", 333, mm.GetRandomNodeInGraph().pos);
-        CreateAgent(Color.blue, "host1", "Agent 1", 333, mm.GetRandomNodeInGraph().pos);
-        CreateAgent(Color.red, "host2", "Agent 2", 333, mm.GetRandomNodeInGraph().pos);
+        List<Color> colors = new List<Color>() { Color.blue, Color.red, Color.green, Color.magenta, Color.cyan };
+
+        for (int i = 0; i < 20; i++)
+        {
+            CreateAgent(colors[Random.Range(0, colors.Count)], "host" + i, "Agent " + i, 333, mm.GetRandomNodeInGraph().pos);
+        }
+
+        //CreateAgent(Color.blue, "host0", "Agent 0", 333, mm.GetRandomNodeInGraph().pos);
+        //CreateAgent(Color.blue, "host1", "Agent 1", 333, mm.GetRandomNodeInGraph().pos);
+        //CreateAgent(Color.red, "host2", "Agent 2", 333, mm.GetRandomNodeInGraph().pos);
     }
 
     void UpdateAgentPosition(string agentPreferredName, Vector3 newPosition)
