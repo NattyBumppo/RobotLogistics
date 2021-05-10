@@ -27,6 +27,7 @@ public enum WorkRequestResponseType
     SUCCESS,
     FAILURE_AGENT_TOO_FAR,
     FAILURE_NO_TASKS,
+    FAILURE_REQUEST_PARSING_ERROR,
     FAILURE_OTHER
 }
 
@@ -62,7 +63,7 @@ public class NetworkServer : MonoBehaviour
     private bool captureRequested = false;
     public Camera cameraForNextCapture;
 
-    private int DATA_REQUEST_PACKET_LENGTH_BYTES = 144;
+    private int DATA_REQUEST_PACKET_LENGTH_BYTES = 32;
     private int DATA_RESPONSE_HEADER_LENGTH_BYTES = 14;
 
     public byte[] sensorDataByteBuffer;
@@ -247,9 +248,10 @@ public class NetworkServer : MonoBehaviour
 
                     // Parse request from client
                     //DataRequestPacket drp;
-                    bool parseSuccess = BytesToClientMessage(bytes);
 
-                    Debug.Log("Parse success? " + parseSuccess);
+                    byte[] response = HandleRequestFromAgent(bytes, client);
+
+                    Debug.Log("Parse success? " + (response.Length > 0));
 
                     //// Trigger test image
                     //captureBytesReady = false;
@@ -267,9 +269,9 @@ public class NetworkServer : MonoBehaviour
                     //// Make successful packet containing synthetic data payload
                     //msg = MakeDataResponsePacketBytes(WorkRequestResponseType.SUCCESS, drp.responseID, captureBytes.ToArray());
 
-                    byte[] msg = Encoding.Unicode.GetBytes("Received message successfully!");
-                    stream.Write(msg, 0, msg.Length);
-                    Debug.Log("Sent response (" + msg.Length + "B)");
+                    //byte[] msg = Encoding.Unicode.GetBytes("Received message successfully!");
+                    stream.Write(response, 0, response.Length);
+                    Debug.Log("Sent response (" + response.Length + "B)");
                 }
 
                 // Shutdown and end connection
@@ -289,7 +291,7 @@ public class NetworkServer : MonoBehaviour
         Debug.Log("\nHit enter to continue...");
         Console.Read();
     }
-
+    
     //byte[] MakeDataResponsePacketBytes(WorkRequestResponseType responseType, UInt32 responseID, byte[] sensorDataPayload)
     //{
     //    // Prepare struct
@@ -395,9 +397,118 @@ public class NetworkServer : MonoBehaviour
 
     //For registration:
 
-    void HandleRequestFromAgent(byte[] request)
+    byte[] HandleRegistrationRequest(byte[] bytes)
     {
-        // First read type code
+        // Check length (should be 32 bytes; return error otherwise)
+        if (bytes.Length != 32)
+        {
+            Debug.LogError("Error: bad byte length of " + bytes.Length);
+            return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+        }
+
+        // Parse color
+        byte[] rBytes = bytes.Skip(1).Take(4).ToArray();
+        byte[] gBytes = bytes.Skip(5).Take(4).ToArray();
+        byte[] bBytes = bytes.Skip(9).Take(4).ToArray();
+        byte[] preferredNameBytes = bytes.Skip(13).Take(16).ToArray();
+
+        // Reverse all data endianness if it's not in network byte order (big endian)
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(rBytes);
+            Array.Reverse(gBytes);
+            Array.Reverse(bBytes);
+            // String is passed as individual chars so endianness isn't a factor
+        }
+
+        float r = BitConverter.ToSingle(rBytes, 0);
+        float g = BitConverter.ToSingle(gBytes, 0);
+        float b = BitConverter.ToSingle(bBytes, 0);
+
+        Color color = new Color(r, g, b);
+
+        Debug.Log("Parsed new color of " + color);
+
+        // Parse preferred name
+        string preferredName = System.Text.Encoding.ASCII.GetString(preferredNameBytes).Trim();
+
+        Debug.Log("Parsed preferred name of " + preferredName);
+
+
+        // Register new agent
+
+
+        // Grab map as a file and attach as payload to response
+
+
+        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+    }
+
+    byte[] HandleWorkRequest(byte[] bytes)
+    {
+        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+    }
+
+    byte[] HandlePositionUpdate(byte[] bytes)
+    {
+        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+    }
+
+    byte[] HandleTaskComplete(byte[] bytes)
+    {
+        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+    }
+
+    byte[] HandleCameraDataRequest(byte[] bytes)
+    {
+        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+    }
+
+    byte[] HandleDeregistrationRequest(byte[] bytes)
+    {
+        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+    }
+
+    byte[] ConstructErrorMsg(byte[] request, WorkRequestResponseType errorType)
+    {
+        return new byte[] { (byte)errorType };
+    }
+
+    byte[] HandleRequestFromAgent(byte[] request, TcpClient clientInfo)
+    {
+        // Parse client data
+        string hostname = ((IPEndPoint)clientInfo.Client.RemoteEndPoint).Address.ToString();
+        string port = ((IPEndPoint)clientInfo.Client.RemoteEndPoint).Port.ToString();
+
+        // Next, read type code
+        AgentRequestType requestCode = (AgentRequestType)request[0];
+
+        switch(requestCode)
+        {
+            case AgentRequestType.REGISTRATION:
+                return HandleRegistrationRequest(request);
+                break;
+            case AgentRequestType.REQUEST_FOR_WORK:
+                return HandleWorkRequest(request);
+                break;
+            case AgentRequestType.POSITION_UPDATE:
+                return HandlePositionUpdate(request);
+                break;
+            case AgentRequestType.TASK_COMPLETE:
+                return HandleTaskComplete(request);
+                break;
+            case AgentRequestType.REQUEST_FOR_CAMERA_DATA:
+                return HandleCameraDataRequest(request);
+                break;
+            case AgentRequestType.DEREGISTRATION:
+                return HandleDeregistrationRequest(request);
+                break;
+            default:
+                // Unrecognized request code; send back an error
+                return ConstructErrorMsg(request, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+                break;
+
+        }
 
 
         // Next, parse payload (if applicable)
@@ -409,7 +520,6 @@ public class NetworkServer : MonoBehaviour
         // Make a response
 
 
-        // Send response
     }
 
     byte[] MakeResponseToRegistration()

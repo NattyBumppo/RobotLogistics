@@ -20,7 +20,8 @@ class DataRequestStatusCode(enum.IntEnum):
     SUCCESS = 0
     FAILURE_AGENT_TOO_FAR = 1
     FAILURE_NO_TASKS = 2
-    FAILURE_OTHER = 3
+    FAILURE_REQUEST_PARSING_ERROR = 3
+    FAILURE_OTHER = 4
 
 def recv_msg(sock):
     # Read message length and unpack it into an integer
@@ -138,7 +139,7 @@ def make_registration_packet(my_color_rgb_float, my_preferred_name):
     # Now, pad to 16 characters
     my_preferred_name = my_preferred_name.ljust(16, ' ')
 
-    return struct.pack('!B3f16s', AgentRequestType.REGISTRATION, my_color_rgb_float[0], my_color_rgb_float[1], my_color_rgb_float[2], str.encode(my_preferred_name))
+    return struct.pack('!B3f16sxxx', AgentRequestType.REGISTRATION, my_color_rgb_float[0], my_color_rgb_float[1], my_color_rgb_float[2], str.encode(my_preferred_name))
 
 def test_connect_and_register(ip, port):
     bytes_to_send = make_registration_packet((0.0, 0.0, 1.0), 'TestAgent')
