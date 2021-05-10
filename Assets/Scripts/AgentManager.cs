@@ -15,6 +15,7 @@ public struct AgentData
     public RenderTexture renderTextureForCamera;
     public DateTime datetimeOfLastMessage;
     public int tasksCompleted;
+    public int lastNodeIdxVisited;
 }
 
 public struct DeliveryTask
@@ -31,7 +32,29 @@ public class AgentManager : MonoBehaviour
     public Transform agentParent;
     public RenderTexture baseRenderTexture;
 
-    bool CreateAgent(Color color, string hostname, string preferredName, int port, Vector3 initialPosition)
+    // Allow for asynchronous request and implementation of agent creation
+    public Color requestedColorForAgentCreation;
+    public string requestedHostnameForAgentCreation;
+    public int requestedPortForAgentCreation;
+    public string requestedPreferredNameForAgentCreation;
+    public bool agentCreationRequestIssued;
+
+    public void RequestAgentCreation(Color color, string hostname, int port, string preferredName)
+    {
+        requestedColorForAgentCreation = color;
+        requestedHostnameForAgentCreation = hostname;
+        requestedPortForAgentCreation = port;
+        requestedPreferredNameForAgentCreation = preferredName;
+
+        agentCreationRequestIssued = true;
+    }
+
+    Vector3 GetRandomPosition()
+    {
+        return new Vector3(UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f));
+    }
+
+    public bool CreateAgent(Color color, string hostname, int port, string preferredName)
     {
         // Don't allow agent to be created if preferred name is not unique
         foreach (AgentData existingAd in agents)
@@ -51,10 +74,13 @@ public class AgentManager : MonoBehaviour
         ad.port = port;
         ad.preferredName = preferredName;
 
-        ad.latestPosition = initialPosition;
+        GraphNode initialNode = mm.GetRandomUnoccupiedNode();
+
+        ad.latestPosition = initialNode.pos;
+        ad.lastNodeIdxVisited = initialNode.globalIndex;
 
         // Create visual representation for agent
-        GameObject go = Instantiate(agentPrefab, initialPosition, Quaternion.identity);
+        GameObject go = Instantiate(agentPrefab, initialNode.pos, Quaternion.identity);
         ad.go = go;
         go.name = ad.preferredName;
         go.transform.SetParent(agentParent);
@@ -89,7 +115,7 @@ public class AgentManager : MonoBehaviour
 
         for (int i = 0; i < 20; i++)
         {
-            CreateAgent(colors[UnityEngine.Random.Range(0, colors.Count)], "host" + i, "Agent " + i, 333, mm.GetRandomNodeInGraph().pos);
+            CreateAgent(colors[UnityEngine.Random.Range(0, colors.Count)], "host" + i, 333, "Agent " + i);
         }
 
         //CreateAgent(Color.blue, "host0", "Agent 0", 333, mm.GetRandomNodeInGraph().pos);
@@ -118,7 +144,7 @@ public class AgentManager : MonoBehaviour
 
     public void PublicStart()
     {
-
+        agentCreationRequestIssued = false;
     }
 
     void Update()
@@ -126,6 +152,13 @@ public class AgentManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.A))
         {
             TestAddingAgents();
+        }
+
+        if (agentCreationRequestIssued)
+        {
+            CreateAgent(requestedColorForAgentCreation, requestedHostnameForAgentCreation, requestedPortForAgentCreation, requestedPreferredNameForAgentCreation);
+
+            agentCreationRequestIssued = false;
         }
     }
 }

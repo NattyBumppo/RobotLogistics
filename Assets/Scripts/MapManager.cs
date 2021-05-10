@@ -16,6 +16,8 @@ public struct GraphNode
 
 public class MapManager : MonoBehaviour
 {
+    public AgentManager am;
+
     public float minX;
     public float maxX;
     public float defaultY;
@@ -40,6 +42,53 @@ public class MapManager : MonoBehaviour
 
     List<GraphNode> graph = new List<GraphNode>();
     List<GameObject> nodeConnectors = new List<GameObject>();
+
+    public GraphNode GetRandomUnoccupiedNode()
+    {
+        // Just a reminder for this function, in case I forgot:
+        // global indices refer to the indices of nodes among all
+        // of the nodes that were ever created in the grid (including
+        // ones not connected to any other nodes), but the graph is a
+        // smaller data structure than that (it only contains connected
+        // nodes, so global indices and graph indices are different.
+
+        int startIdx = UnityEngine.Random.Range(0, graph.Count);
+
+        int curIdx = startIdx;
+        int nodesTriedCount = 0;
+
+        List<int> occupiedNodeIndices = new List<int>();
+
+        foreach (AgentData ad in am.agents)
+        {
+            occupiedNodeIndices.Add(ad.lastNodeIdxVisited);
+        }
+
+        while (nodesTriedCount < graph.Count)
+        {
+            int curGlobalIdx = graph[curIdx].globalIndex;
+
+            if (!occupiedNodeIndices.Contains(curGlobalIdx) && hqNodeCoordinateGlobalIdx != curGlobalIdx)
+            {
+                // Use this index
+                return graph[curIdx];
+            }
+            else
+            {
+                curIdx++;
+                nodesTriedCount++;
+
+                if (curIdx >= graph.Count)
+                {
+                    curIdx = 0;
+                }
+            }
+        }
+
+        // If we reached this point, then all of the nodes were occupied, so at this point,
+        // we'll just allow any node (this is very unlikely...)
+        return graph[startIdx];
+    }
 
     string GraphToString(List<GraphNode> graph)
     {

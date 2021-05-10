@@ -2,8 +2,10 @@ from datetime import datetime
 import enum
 import glob
 import os
+import random
 import signal
 import socket
+import string
 import struct
 import sys
 import tempfile
@@ -119,7 +121,7 @@ def connect_and_send_request(ip, port, request_data):
     response_data = recv_msg(client_socket)
 
     # Print to the console
-    print('Received response from server (%s bytes)' % len(response_data))
+    # print('Received response from server (%s bytes)' % len(response_data))
 
     client_socket.close()
 
@@ -142,7 +144,7 @@ def make_registration_packet(my_color_rgb_float, my_preferred_name):
     return struct.pack('!B3f16sxxx', AgentRequestType.REGISTRATION, my_color_rgb_float[0], my_color_rgb_float[1], my_color_rgb_float[2], str.encode(my_preferred_name))
 
 def test_connect_and_register(ip, port):
-    bytes_to_send = make_registration_packet((0.0, 0.0, 1.0), 'TestAgent')
+    bytes_to_send = make_registration_packet((0.0, 0.0, 1.0), random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase))
     connect_and_send_request(ip, port, bytes_to_send)
 
 def signal_handler(sig, frame):

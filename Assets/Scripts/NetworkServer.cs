@@ -48,6 +48,8 @@ public enum WorkRequestResponseType
 
 public class NetworkServer : MonoBehaviour
 {
+    public AgentManager am;
+
     public System.Threading.Thread SocketThread;
     TcpListener server = null;
 
@@ -239,40 +241,39 @@ public class NetworkServer : MonoBehaviour
                 // Get a stream object for reading and writing
                 NetworkStream stream = client.GetStream();
 
-                int i;
+
 
                 // Loop to receive all the data sent by the client.
-                while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
-                {
-                    Debug.Log("Received request (" + bytes.Length + "B) from client.");
+                stream.Read(bytes, 0, bytes.Length);
+                Debug.Log("Received request (" + bytes.Length + "B) from client.");
 
-                    // Parse request from client
-                    //DataRequestPacket drp;
+                // Parse request from client
+                //DataRequestPacket drp;
 
-                    byte[] response = HandleRequestFromAgent(bytes, client);
+                byte[] response = HandleRequestFromAgent(bytes, client);
 
-                    Debug.Log("Parse success? " + (response.Length > 0));
+                Debug.Log("Parse success? " + (response.Length > 0));
 
-                    //// Trigger test image
-                    //captureBytesReady = false;
-                    //captureRequested = true;
-                    //captureRequestParameters = drp;
+                //// Trigger test image
+                //captureBytesReady = false;
+                //captureRequested = true;
+                //captureRequestParameters = drp;
 
-                    //// Wait for image to be processed
-                    //while (!captureBytesReady)
-                    //{
-                    //    System.Threading.Thread.Sleep(100);
-                    //}
+                //// Wait for image to be processed
+                //while (!captureBytesReady)
+                //{
+                //    System.Threading.Thread.Sleep(100);
+                //}
 
-                    //byte[] msg;
+                //byte[] msg;
 
-                    //// Make successful packet containing synthetic data payload
-                    //msg = MakeDataResponsePacketBytes(WorkRequestResponseType.SUCCESS, drp.responseID, captureBytes.ToArray());
+                //// Make successful packet containing synthetic data payload
+                //msg = MakeDataResponsePacketBytes(WorkRequestResponseType.SUCCESS, drp.responseID, captureBytes.ToArray());
 
-                    //byte[] msg = Encoding.Unicode.GetBytes("Received message successfully!");
-                    stream.Write(response, 0, response.Length);
-                    Debug.Log("Sent response (" + response.Length + "B)");
-                }
+                //byte[] msg = Encoding.Unicode.GetBytes("Received message successfully!");
+                stream.Write(response, 0, response.Length);
+                Debug.Log("Sent response (" + response.Length + "B)");
+
 
                 // Shutdown and end connection
                 client.Close();
@@ -397,7 +398,7 @@ public class NetworkServer : MonoBehaviour
 
     //For registration:
 
-    byte[] HandleRegistrationRequest(byte[] bytes)
+    byte[] HandleRegistrationRequest(byte[] bytes, string hostname, int port)
     {
         // Check length (should be 32 bytes; return error otherwise)
         if (bytes.Length != 32)
@@ -418,7 +419,7 @@ public class NetworkServer : MonoBehaviour
             Array.Reverse(rBytes);
             Array.Reverse(gBytes);
             Array.Reverse(bBytes);
-            // String is passed as individual chars so endianness isn't a factor
+            // preferredNameBytes string is passed as individual chars so endianness isn't a factor
         }
 
         float r = BitConverter.ToSingle(rBytes, 0);
@@ -434,8 +435,14 @@ public class NetworkServer : MonoBehaviour
 
         Debug.Log("Parsed preferred name of " + preferredName);
 
+        // Issue request to register new agent and wait
+        am.RequestAgentCreation(color, hostname, port, preferredName);
 
-        // Register new agent
+        while (am.agentCreationRequestIssued)
+        {
+            // Wait for request to be procseed
+            Thread.Sleep(100);
+        }
 
 
         // Grab map as a file and attach as payload to response
@@ -478,7 +485,7 @@ public class NetworkServer : MonoBehaviour
     {
         // Parse client data
         string hostname = ((IPEndPoint)clientInfo.Client.RemoteEndPoint).Address.ToString();
-        string port = ((IPEndPoint)clientInfo.Client.RemoteEndPoint).Port.ToString();
+        int port = ((IPEndPoint)clientInfo.Client.RemoteEndPoint).Port;
 
         // Next, read type code
         AgentRequestType requestCode = (AgentRequestType)request[0];
@@ -486,7 +493,7 @@ public class NetworkServer : MonoBehaviour
         switch(requestCode)
         {
             case AgentRequestType.REGISTRATION:
-                return HandleRegistrationRequest(request);
+                return HandleRegistrationRequest(request, hostname, port);
                 break;
             case AgentRequestType.REQUEST_FOR_WORK:
                 return HandleWorkRequest(request);
