@@ -125,36 +125,34 @@ def connect_and_send_request(ip, port, request_data):
 
     return response_data
 
+def trim_and_pad_string_then_convert_to_bytes(string_to_convert, char_limit):
+    if len(string_to_convert) > char_limit:
+        # Trim name to char_limit characters
+        print('Trimming name %s due to it being over %s characters...' % (string_to_convert, char_limit))
+        string_to_convert = string_to_convert[:char_limit]
+        print('New name is %s' % string_to_convert)
+
+    # Now, pad to char_limit characters
+    string_to_convert = string_to_convert.ljust(char_limit, ' ')
+
+    return str.encode(string_to_convert)
+
+def make_position_update_packet(start_node_graph_idx, end_node_graph_idx, fraction_travelled, my_preferred_name):
+    my_preferred_name_bytes = trim_and_pad_string_then_convert_to_bytes(my_preferred_name, 16)
+
+    return struct.pack('!BIIf16sxxx', AgentRequestType.POSITION_UPDATE, start_node_graph_idx, end_node_graph_idx, fraction_travelled, my_preferred_name_bytes)
+
 def make_registration_packet(my_color_rgb_float, my_preferred_name):
-    # First byte is registration type
-    # Next 12 bytes are color
-    # Next 16 bytes are name (right-padded with spaces)
+    my_preferred_name_bytes = trim_and_pad_string_then_convert_to_bytes(my_preferred_name, 16)
 
-    if len(my_preferred_name) > 16:
-        # Trim name to 16 characters
-        print('Trimming name %s due to it being over 16 characters...' % my_preferred_name)
-        my_preferred_name = my_preferred_name[:16]
-        print('New name is %s' % my_preferred_name)
-
-    # Now, pad to 16 characters
-    my_preferred_name = my_preferred_name.ljust(16, ' ')
-
-    return struct.pack('!B3f16sxxx', AgentRequestType.REGISTRATION, my_color_rgb_float[0], my_color_rgb_float[1], my_color_rgb_float[2], str.encode(my_preferred_name))
+    return struct.pack('!B3f16sxxx', AgentRequestType.REGISTRATION, my_color_rgb_float[0], my_color_rgb_float[1], my_color_rgb_float[2], my_preferred_name_bytes)
 
 def make_deregistration_packet(my_preferred_name):
     # First byte is registration type
     # Next 16 bytes are name (right-padded with spaces)
+    my_preferred_name_bytes = trim_and_pad_string_then_convert_to_bytes(my_preferred_name, 16)
 
-    if len(my_preferred_name) > 16:
-        # Trim name to 16 characters
-        print('Trimming name %s due to it being over 16 characters...' % my_preferred_name)
-        my_preferred_name = my_preferred_name[:16]
-        print('New name is %s' % my_preferred_name)
-
-    # Now, pad to 16 characters
-    my_preferred_name = my_preferred_name.ljust(16, ' ')
-
-    return struct.pack('!B16s15x', AgentRequestType.DEREGISTRATION, str.encode(my_preferred_name))
+    return struct.pack('!B16s15x', AgentRequestType.DEREGISTRATION, my_preferred_name_bytes)
 
 def test_connect_and_register(ip, port):
     chosen_name = random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase)
@@ -166,6 +164,13 @@ def test_connect_and_register(ip, port):
 def test_connect_and_deregister(ip, port, chosen_name):
     bytes_to_send = make_deregistration_packet(chosen_name)
     connect_and_send_request(ip, port, bytes_to_send)
+
+
+
+def test_connect_and_update_position(ip, port, fraction, my_preferred_name):
+    bytes_to_send = make_position_update_packet(3, 4, fraction, my_preferred_name)
+    connect_and_send_request(ip, port, bytes_to_send)
+
 
 def signal_handler(sig, frame):
     print('You pressed Ctrl+C')
@@ -179,7 +184,12 @@ def main():
     else:
         chosen_name = test_connect_and_register(sys.argv[1], int(sys.argv[2]))
         time.sleep(3)
+        for i in range(11):
+            test_connect_and_update_position(sys.argv[1], int(sys.argv[2]), float(i) / 10.0, chosen_name)
+            time.sleep(0.5)
+        time.sleep(2)
         test_connect_and_deregister(sys.argv[1], int(sys.argv[2]), chosen_name)
+
 
 if __name__ == '__main__':
     main()

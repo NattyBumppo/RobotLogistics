@@ -49,6 +49,7 @@ public enum WorkRequestResponseType
 public class NetworkServer : MonoBehaviour
 {
     public AgentManager am;
+    public MapManager mm;
 
     public System.Threading.Thread SocketThread;
     TcpListener server = null;
@@ -404,7 +405,7 @@ public class NetworkServer : MonoBehaviour
         if (bytes.Length != 32)
         {
             Debug.LogError("Error: bad byte length of " + bytes.Length);
-            return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+            return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
         }
 
         // Parse color and preferred name
@@ -444,31 +445,61 @@ public class NetworkServer : MonoBehaviour
             Thread.Sleep(100);
         }
 
+        // Grab map as a string and attach as payload to response
+        string mapString = mm.GraphToString();
 
-        // Grab map as a file and attach as payload to response
-
-
-        return ConstructResponse(bytes, WorkRequestResponseType.SUCCESS);
+        return ConstructResponse(WorkRequestResponseType.SUCCESS, Encoding.ASCII.GetBytes(mapString));
     }
 
     byte[] HandleWorkRequest(byte[] bytes)
     {
-        return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_OTHER);
+        return ConstructResponse(WorkRequestResponseType.FAILURE_OTHER);
     }
 
     byte[] HandlePositionUpdate(byte[] bytes)
     {
-        return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_OTHER);
+        // Check length (should be 32 bytes; return error otherwise)
+        if (bytes.Length != 32)
+        {
+            Debug.LogError("Error: bad byte length of " + bytes.Length);
+            return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+        }
+
+        // Grab position data
+        byte[] startNodeGraphIdxBytes = bytes.Skip(1).Take(4).ToArray();
+        byte[] endNodeGraphIdxBytes = bytes.Skip(5).Take(4).ToArray();
+        byte[] fractionBytes = bytes.Skip(9).Take(4).ToArray();
+        byte[] preferredNameBytes = bytes.Skip(13).Take(16).ToArray();
+
+        // Reverse all data endianness if it's not in network byte order (big endian)
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(startNodeGraphIdxBytes);
+            Array.Reverse(endNodeGraphIdxBytes);
+            Array.Reverse(fractionBytes);
+            // preferredNameBytes string is passed as individual chars so endianness isn't a factor
+        }
+
+        // Convert data
+        int startNodeGraphIdx = (int)BitConverter.ToUInt32(startNodeGraphIdxBytes, 0);
+        int endNodeGraphIdx = (int)BitConverter.ToUInt32(endNodeGraphIdxBytes, 0);
+        float fraction = BitConverter.ToSingle(fractionBytes, 0);
+        string preferredName = System.Text.Encoding.ASCII.GetString(preferredNameBytes).Trim();
+
+        // Move agent
+        am.RequestAgentPositionUpdate(startNodeGraphIdx, endNodeGraphIdx, fraction, preferredName);
+
+        return ConstructResponse(WorkRequestResponseType.SUCCESS);
     }
 
     byte[] HandleTaskComplete(byte[] bytes)
     {
-        return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_OTHER);
+        return ConstructResponse(WorkRequestResponseType.FAILURE_OTHER);
     }
 
     byte[] HandleCameraDataRequest(byte[] bytes)
     {
-        return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_OTHER);
+        return ConstructResponse(WorkRequestResponseType.FAILURE_OTHER);
     }
 
     byte[] HandleDeregistrationRequest(byte[] bytes, string hostname, int port)
@@ -477,7 +508,7 @@ public class NetworkServer : MonoBehaviour
         if (bytes.Length != 32)
         {
             Debug.LogError("Error: bad byte length of " + bytes.Length);
-            return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+            return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
         }
 
         // Parse preferred name
@@ -497,12 +528,17 @@ public class NetworkServer : MonoBehaviour
             Thread.Sleep(100);
         }
 
-        return ConstructResponse(bytes, WorkRequestResponseType.SUCCESS);
+        return ConstructResponse(WorkRequestResponseType.SUCCESS);
     }
 
-    byte[] ConstructResponse(byte[] request, WorkRequestResponseType errorType)
+    byte[] ConstructResponse(WorkRequestResponseType responseType /* no payload */)
     {
-        return new byte[] { (byte)errorType };
+        return new byte[] { (byte)responseType };
+    }
+
+    byte[] ConstructResponse(WorkRequestResponseType responseType, byte[] payload)
+    {
+        return new byte[] { (byte)responseType };
     }
 
     byte[] HandleRequestFromAgent(byte[] request, TcpClient clientInfo)
@@ -518,39 +554,20 @@ public class NetworkServer : MonoBehaviour
         {
             case AgentRequestType.REGISTRATION:
                 return HandleRegistrationRequest(request, hostname, port);
-                break;
             case AgentRequestType.REQUEST_FOR_WORK:
                 return HandleWorkRequest(request);
-                break;
             case AgentRequestType.POSITION_UPDATE:
                 return HandlePositionUpdate(request);
-                break;
             case AgentRequestType.TASK_COMPLETE:
                 return HandleTaskComplete(request);
-                break;
             case AgentRequestType.REQUEST_FOR_CAMERA_DATA:
                 return HandleCameraDataRequest(request);
-                break;
             case AgentRequestType.DEREGISTRATION:
                 return HandleDeregistrationRequest(request, hostname, port);
-                break;
             default:
                 // Unrecognized request code; send back an error
-                return ConstructResponse(request, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
-                break;
-
+                return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
         }
-
-
-        // Next, parse payload (if applicable)
-
-
-        // Do any necessary data processing or registration
-
-
-        // Make a response
-
-
     }
 
     byte[] MakeResponseToRegistration()

@@ -111,6 +111,11 @@ public class MapManager : MonoBehaviour
         return sb.ToString();
     }
 
+    public string GraphToString()
+    {
+        return GraphToString(graph);
+    }
+
     string GraphNodeToString(GraphNode gn)
     {
         StringBuilder sb = new StringBuilder();
@@ -428,6 +433,11 @@ public class MapManager : MonoBehaviour
         return graph[Random.Range(0, graph.Count)];
     }
 
+    public GraphNode GetNode(int graphIdx)
+    {
+        return graph[graphIdx];
+    }
+
     public void PublicStart()
     {
         SetUpMap();
@@ -437,7 +447,7 @@ public class MapManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.F))
         {
-            Debug.Log(GraphToString(graph));
+            Debug.Log(GraphToString());
         }
     }
 }

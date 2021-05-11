@@ -39,6 +39,13 @@ public class AgentManager : MonoBehaviour
     public string requestedPreferredNameForAgentCreation;
     public bool agentCreationRequestIssued;
 
+    // Allow for asynchronous agent position updates
+    public int requestedStartNodeGraphIdxForAgentPositionUpdate;
+    public int requestedEndNodeGraphIdxForAgentPositionUpdate;
+    public float requestedFractionForAgentPositionUpdate;
+    public string requestedPreferredNameForAgentPositionUpdate;
+    public bool agentPositionUpdateRequestIssued;
+
     // Allow for asynchronous request and implementation of agent destruction
     public string requestedHostnameForAgentDestructionn;
     public int requestedPortForAgentDestruction;
@@ -55,6 +62,16 @@ public class AgentManager : MonoBehaviour
         agentCreationRequestIssued = true;
     }
 
+    public void RequestAgentPositionUpdate(int startNodeGraphIdx, int endNodeGraphIdx, float fraction, string preferredName)
+    {
+        requestedStartNodeGraphIdxForAgentPositionUpdate = startNodeGraphIdx;
+        requestedEndNodeGraphIdxForAgentPositionUpdate = endNodeGraphIdx;
+        requestedFractionForAgentPositionUpdate = fraction;
+        requestedPreferredNameForAgentPositionUpdate = preferredName;
+
+        agentPositionUpdateRequestIssued = true;
+    }
+
     public void RequestAgentDestruction(string hostname, int port, string preferredName)
     {
         requestedHostnameForAgentDestructionn = hostname;
@@ -67,6 +84,22 @@ public class AgentManager : MonoBehaviour
     Vector3 GetRandomPosition()
     {
         return new Vector3(UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f));
+    }
+
+    bool GetAgentByName(string preferredName, out AgentData agent)
+    {
+        agent = new AgentData();
+
+        foreach (AgentData existingAd in agents)
+        {
+            if (existingAd.preferredName == preferredName)
+            {
+                agent = existingAd;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public bool CreateAgent(Color color, string hostname, int port, string preferredName)
@@ -169,7 +202,7 @@ public class AgentManager : MonoBehaviour
         //CreateAgent(Color.red, "host2", "Agent 2", 333, mm.GetRandomNodeInGraph().pos);
     }
 
-    void UpdateAgentPosition(string agentPreferredName, Vector3 newPosition)
+    public void UpdateAgentPosition(string agentPreferredName, Vector3 newPosition)
     {
         foreach (AgentData ad in agents)
         {
@@ -183,6 +216,27 @@ public class AgentManager : MonoBehaviour
         Debug.LogError("Error: could not update position for " + agentPreferredName + " (didn't find agent by that name)");
     }
 
+    public void UpdateAgentPosition(string agentPreferredName, int startNodeGraphIdx, int endNodeGraphIdx, float fraction)
+    {
+        Vector3 startPos = mm.GetNode(startNodeGraphIdx).pos;
+        Vector3 endPos = mm.GetNode(endNodeGraphIdx).pos;
+
+        Vector3 newPos = Vector3.Lerp(startPos, endPos, fraction);
+
+        AgentData ad;
+        bool agentFound = GetAgentByName(agentPreferredName, out ad);
+
+        if (agentFound)
+        {
+            ad.latestPosition = newPos;
+            ad.go.transform.position = newPos;
+        }
+        else
+        {
+            Debug.LogError("Error: could not update position for agent " + agentPreferredName + " due to agent not existing!");
+        }
+    }
+
     void AssignTaskTo(int taskID, int agentID)
     {
 
@@ -192,6 +246,7 @@ public class AgentManager : MonoBehaviour
     {
         agentCreationRequestIssued = false;
         agentDestructionRequestIssued = false;
+        agentPositionUpdateRequestIssued = false;
     }
 
     void Update()
@@ -208,11 +263,18 @@ public class AgentManager : MonoBehaviour
             agentCreationRequestIssued = false;
         }
 
+        if (agentPositionUpdateRequestIssued)
+        {
+            UpdateAgentPosition(requestedPreferredNameForAgentPositionUpdate, requestedStartNodeGraphIdxForAgentPositionUpdate, requestedEndNodeGraphIdxForAgentPositionUpdate, requestedFractionForAgentPositionUpdate);
+
+            agentPositionUpdateRequestIssued = false;
+        }
+
         if (agentDestructionRequestIssued)
         {
             DestroyAgent(requestedHostnameForAgentCreation, requestedPortForAgentCreation, requestedPreferredNameForAgentCreation);
 
-            agentCreationRequestIssued = false;
+            agentDestructionRequestIssued = false;
         }
     }
 }
