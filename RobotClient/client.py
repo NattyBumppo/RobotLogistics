@@ -34,6 +34,8 @@ def recv_msg(sock):
     return recvall(sock, msglen-4)
 
 def recvall(sock, n):
+    print('recvall() for %s bytes' % n)
+
     # Helper function to recv n bytes or return None if EOF is hit
     data = bytearray()
     while len(data) < n:
@@ -96,8 +98,9 @@ def test_connect_and_send_request(ip, port):
 
     # Write out payload
     if parse_success and (status_code == DataRequestStatusCode.SUCCESS):
-        time_as_str = datetime.now().strftime('%H_%M_%S_%f')
-        save_payload(sensor_type, payload, sensor_as_string + '_dist_%s_m.' % dist + time_as_str)
+        # time_as_str = datetime.now().strftime('%H_%M_%S_%f')
+        # save_payload(sensor_type, payload, sensor_as_string + '_dist_%s_m.' % dist + time_as_str)
+        print('Success!')
     else:
         print('Could not save payload due to error.')
         print('Status code of %s means:' % status_code)
@@ -119,7 +122,11 @@ def connect_and_send_request(ip, port, request_data):
     response_data = recv_msg(client_socket)
 
     # Print to the console
-    # print('Received response from server (%s bytes)' % len(response_data))
+    print('Received response from server (%s bytes)' % len(response_data))
+
+    response_data_as_str = ''.join(map(chr, response_data))
+
+    open('response.txt', 'wb').write(response_data)
 
     client_socket.close()
 
@@ -165,8 +172,6 @@ def test_connect_and_deregister(ip, port, chosen_name):
     bytes_to_send = make_deregistration_packet(chosen_name)
     connect_and_send_request(ip, port, bytes_to_send)
 
-
-
 def test_connect_and_update_position(ip, port, fraction, my_preferred_name):
     bytes_to_send = make_position_update_packet(3, 4, fraction, my_preferred_name)
     connect_and_send_request(ip, port, bytes_to_send)
@@ -183,12 +188,12 @@ def main():
         print('Please specify an IP address (first argument) and a port (second argument)')
     else:
         chosen_name = test_connect_and_register(sys.argv[1], int(sys.argv[2]))
-        time.sleep(3)
-        for i in range(11):
-            test_connect_and_update_position(sys.argv[1], int(sys.argv[2]), float(i) / 10.0, chosen_name)
-            time.sleep(0.5)
-        time.sleep(2)
-        test_connect_and_deregister(sys.argv[1], int(sys.argv[2]), chosen_name)
+        # time.sleep(3)
+        # for i in range(11):
+            # test_connect_and_update_position(sys.argv[1], int(sys.argv[2]), float(i) / 10.0, chosen_name)
+            # time.sleep(0.5)
+        # time.sleep(2)
+        # test_connect_and_deregister(sys.argv[1], int(sys.argv[2]), chosen_name)
 
 
 if __name__ == '__main__':
