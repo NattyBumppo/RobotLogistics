@@ -859,7 +859,7 @@ MonoBehaviour:
   defaultY: 0.01
   minZ: -4
   maxZ: 4
-  numNodesHorizontal: 24
+  numNodesHorizontal: 20
   numNodesVertical: 16
   showNodeIndicesInUI: 1
   randomConnectionsToAddOnInit: 333
@@ -869,7 +869,7 @@ MonoBehaviour:
   hqNodeCoordinateHorizIdx: 0
   hqNodeCoordinateVertIdx: 0
   hqNodeCoordinateGlobalIdx: 0
-  nodeConnectorsPerConnection: 6
+  nodeConnectorsPerConnection: 5
   nodeParent: {fileID: 2059531601}
   nodeConnectorParent: {fileID: 1449445693}
 --- !u!4 &1284730859

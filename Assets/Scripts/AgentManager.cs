@@ -64,6 +64,8 @@ public class AgentManager : MonoBehaviour
 
     public void RequestAgentPositionUpdate(int startNodeGraphIdx, int endNodeGraphIdx, float fraction, string preferredName)
     {
+        Debug.Log("Moving agent to fraction " + fraction + " between " + startNodeGraphIdx + " and " + endNodeGraphIdx);
+
         requestedStartNodeGraphIdxForAgentPositionUpdate = startNodeGraphIdx;
         requestedEndNodeGraphIdxForAgentPositionUpdate = endNodeGraphIdx;
         requestedFractionForAgentPositionUpdate = fraction;
