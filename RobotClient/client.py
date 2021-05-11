@@ -120,6 +120,17 @@ def parse_registration_response(data):
     
     my_map = pathfinding.parse_map_data_and_populate_map(map_string, graph_index)
 
+    # print(my_map.node_list[3])
+    # print(my_map.node_list[10])
+
+    return my_map
+
+
+
+    # for i in range(5):
+    #     test_connect_and_update_position(sys.argv[1], int(sys.argv[2]), float(i) / 5.0, chosen_name)
+    #     time.sleep(0.1)
+
 
 def connect_and_send_request(ip, port, request_data):
     # Create a client socket
@@ -156,6 +167,10 @@ def trim_and_pad_string_then_convert_to_bytes(string_to_convert, char_limit):
     return str.encode(string_to_convert)
 
 def make_position_update_packet(start_node_graph_idx, end_node_graph_idx, fraction_travelled, my_preferred_name):
+
+    print('Requesting to move agent to fraction ' + str(fraction_travelled) + ' between ' + str(start_node_graph_idx) + ' and ' + str(end_node_graph_idx))
+
+
     my_preferred_name_bytes = trim_and_pad_string_then_convert_to_bytes(my_preferred_name, 16)
 
     return struct.pack('!BIIf16sxxx', AgentRequestType.POSITION_UPDATE, start_node_graph_idx, end_node_graph_idx, fraction_travelled, my_preferred_name_bytes)
@@ -172,11 +187,32 @@ def make_deregistration_packet(my_preferred_name):
 
     return struct.pack('!B16s15x', AgentRequestType.DEREGISTRATION, my_preferred_name_bytes)
 
-def test_connect_and_register(ip, port):
+def test_connect_and_register(ip, port, start_idx, goal_idx):
     chosen_name = random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase)
     bytes_to_send = make_registration_packet((0.0, 0.0, 1.0), chosen_name)
     response = connect_and_send_request(ip, port, bytes_to_send)
-    parse_registration_response(response)
+    my_map = parse_registration_response(response)
+
+    path = pathfinding.get_path(my_map.node_list[start_idx], my_map.node_list[goal_idx])
+
+    print('Here\'s the path we got from', my_map.node_list[start_idx].graph_idx, 'to', my_map.node_list[goal_idx].graph_idx)
+
+    # Unpack path
+    path_as_list = []
+    for node in path:
+        path_as_list.append(node)
+
+    # Follow and animate path
+    for i in range(len(path_as_list)-1):
+        start_node_graph_idx = path_as_list[i].graph_idx
+        end_node_graph_idx = path_as_list[i+1].graph_idx
+        
+        for j in range(4):
+            test_connect_and_update_position(sys.argv[1], int(sys.argv[2]), float(j) / 5.0, chosen_name, start_node_graph_idx, end_node_graph_idx)
+            time.sleep(0.1)
+
+    # Set to goal
+    test_connect_and_update_position(sys.argv[1], int(sys.argv[2]), 1.0, chosen_name, path_as_list[-2].graph_idx, path_as_list[-1].graph_idx)
 
     return chosen_name
 
@@ -184,10 +220,9 @@ def test_connect_and_deregister(ip, port, chosen_name):
     bytes_to_send = make_deregistration_packet(chosen_name)
     connect_and_send_request(ip, port, bytes_to_send)
 
-def test_connect_and_update_position(ip, port, fraction, my_preferred_name):
-    bytes_to_send = make_position_update_packet(3, 4, fraction, my_preferred_name)
+def test_connect_and_update_position(ip, port, fraction, my_preferred_name, start_node_graph_idx, end_node_graph_idx):
+    bytes_to_send = make_position_update_packet(start_node_graph_idx, end_node_graph_idx, fraction, my_preferred_name)
     connect_and_send_request(ip, port, bytes_to_send)
-
 
 def signal_handler(sig, frame):
     print('You pressed Ctrl+C')
@@ -196,10 +231,10 @@ def signal_handler(sig, frame):
 def main():
     signal.signal(signal.SIGINT, signal_handler)
 
-    if len(sys.argv) != 3:
-        print('Please specify an IP address (first argument) and a port (second argument)')
+    if len(sys.argv) != 5:
+        print('Please specify an IP address (first argument) and a port (second argument) and a start node and an end node')
     else:
-        chosen_name = test_connect_and_register(sys.argv[1], int(sys.argv[2]))
+        chosen_name = test_connect_and_register(sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]))
         # time.sleep(3)
         # for i in range(11):
             # test_connect_and_update_position(sys.argv[1], int(sys.argv[2]), float(i) / 10.0, chosen_name)
