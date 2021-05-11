@@ -106,6 +106,18 @@ def test_connect_and_send_request(ip, port):
         print('Status code of %s means:' % status_code)
         print(get_message_for_status_code(status_code))
 
+def parse_registration_response(data):
+    # Get type of response
+    response_type = DataRequestStatusCode(data[0])
+
+    # Grab my graph index
+    graph_index = struct.unpack('!I', data[1:5])
+    print('Got graph index of %s' % graph_index)
+
+    map_string = str(data[5:])
+    print(map_string)
+
+
 def connect_and_send_request(ip, port, request_data):
     # Create a client socket
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -123,14 +135,6 @@ def connect_and_send_request(ip, port, request_data):
 
     # Print to the console
     print('Received response from server (%s bytes)' % len(response_data))
-
-    # response_data_as_str = ''.join(map(chr, response_data))
-
-    # Grab my graph index
-    graph_index = struct.unpack('!I', response_data[1:5])
-    print('Got graph index of %s' % graph_index)
-
-    open('response.txt', 'wb').write(response_data[5:])
 
     client_socket.close()
 
@@ -168,7 +172,8 @@ def make_deregistration_packet(my_preferred_name):
 def test_connect_and_register(ip, port):
     chosen_name = random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase)
     bytes_to_send = make_registration_packet((0.0, 0.0, 1.0), chosen_name)
-    connect_and_send_request(ip, port, bytes_to_send)
+    response = connect_and_send_request(ip, port, bytes_to_send)
+    parse_registration_response(response)
 
     return chosen_name
 
