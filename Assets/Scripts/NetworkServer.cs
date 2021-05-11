@@ -407,7 +407,7 @@ public class NetworkServer : MonoBehaviour
             return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
         }
 
-        // Parse color
+        // Parse color and preferred name
         byte[] rBytes = bytes.Skip(1).Take(4).ToArray();
         byte[] gBytes = bytes.Skip(5).Take(4).ToArray();
         byte[] bBytes = bytes.Skip(9).Take(4).ToArray();
@@ -471,8 +471,36 @@ public class NetworkServer : MonoBehaviour
         return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
     }
 
-    byte[] HandleDeregistrationRequest(byte[] bytes)
+    byte[] HandleDeregistrationRequest(byte[] bytes, string hostname, int port)
     {
+        // Check length (should be 32 bytes; return error otherwise)
+        if (bytes.Length != 32)
+        {
+            Debug.LogError("Error: bad byte length of " + bytes.Length);
+            return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+        }
+
+        // Parse preferred name
+        byte[] preferredNameBytes = bytes.Skip(1).Take(16).ToArray();
+
+        // Parse preferred name
+        string preferredName = System.Text.Encoding.ASCII.GetString(preferredNameBytes).Trim();
+
+        Debug.Log("Parsed preferred name of " + preferredName);
+
+        // Issue request to deregister new agent and wait
+        am.RequestAgentDestruction(hostname, port, preferredName);
+
+        while (am.agentDestructionRequestIssued)
+        {
+            // Wait for request to be procseed
+            Thread.Sleep(100);
+        }
+
+
+        // Grab map as a file and attach as payload to response
+
+
         return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
     }
 
@@ -508,7 +536,7 @@ public class NetworkServer : MonoBehaviour
                 return HandleCameraDataRequest(request);
                 break;
             case AgentRequestType.DEREGISTRATION:
-                return HandleDeregistrationRequest(request);
+                return HandleDeregistrationRequest(request, hostname, port);
                 break;
             default:
                 // Unrecognized request code; send back an error

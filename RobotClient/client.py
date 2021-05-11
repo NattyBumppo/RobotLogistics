@@ -1,14 +1,12 @@
 from datetime import datetime
 import enum
-import glob
-import os
 import random
 import signal
 import socket
 import string
 import struct
 import sys
-import tempfile
+import time
 
 class AgentRequestType(enum.IntEnum):
     REGISTRATION = 0
@@ -143,8 +141,30 @@ def make_registration_packet(my_color_rgb_float, my_preferred_name):
 
     return struct.pack('!B3f16sxxx', AgentRequestType.REGISTRATION, my_color_rgb_float[0], my_color_rgb_float[1], my_color_rgb_float[2], str.encode(my_preferred_name))
 
+def make_deregistration_packet(my_preferred_name):
+    # First byte is registration type
+    # Next 16 bytes are name (right-padded with spaces)
+
+    if len(my_preferred_name) > 16:
+        # Trim name to 16 characters
+        print('Trimming name %s due to it being over 16 characters...' % my_preferred_name)
+        my_preferred_name = my_preferred_name[:16]
+        print('New name is %s' % my_preferred_name)
+
+    # Now, pad to 16 characters
+    my_preferred_name = my_preferred_name.ljust(16, ' ')
+
+    return struct.pack('!B16s15x', AgentRequestType.DEREGISTRATION, str.encode(my_preferred_name))
+
 def test_connect_and_register(ip, port):
-    bytes_to_send = make_registration_packet((0.0, 0.0, 1.0), random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase))
+    chosen_name = random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase)
+    bytes_to_send = make_registration_packet((0.0, 0.0, 1.0), chosen_name)
+    connect_and_send_request(ip, port, bytes_to_send)
+
+    return chosen_name
+
+def test_connect_and_deregister(ip, port, chosen_name):
+    bytes_to_send = make_deregistration_packet(chosen_name)
     connect_and_send_request(ip, port, bytes_to_send)
 
 def signal_handler(sig, frame):
@@ -157,7 +177,9 @@ def main():
     if len(sys.argv) != 3:
         print('Please specify an IP address (first argument) and a port (second argument)')
     else:
-        test_connect_and_register(sys.argv[1], int(sys.argv[2]))
+        chosen_name = test_connect_and_register(sys.argv[1], int(sys.argv[2]))
+        time.sleep(3)
+        test_connect_and_deregister(sys.argv[1], int(sys.argv[2]), chosen_name)
 
 if __name__ == '__main__':
     main()

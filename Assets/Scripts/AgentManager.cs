@@ -39,6 +39,12 @@ public class AgentManager : MonoBehaviour
     public string requestedPreferredNameForAgentCreation;
     public bool agentCreationRequestIssued;
 
+    // Allow for asynchronous request and implementation of agent destruction
+    public string requestedHostnameForAgentDestructionn;
+    public int requestedPortForAgentDestruction;
+    public string requestedPreferredNameForAgentDestruction;
+    public bool agentDestructionRequestIssued;
+
     public void RequestAgentCreation(Color color, string hostname, int port, string preferredName)
     {
         requestedColorForAgentCreation = color;
@@ -47,6 +53,15 @@ public class AgentManager : MonoBehaviour
         requestedPreferredNameForAgentCreation = preferredName;
 
         agentCreationRequestIssued = true;
+    }
+
+    public void RequestAgentDestruction(string hostname, int port, string preferredName)
+    {
+        requestedHostnameForAgentDestructionn = hostname;
+        requestedPortForAgentDestruction = port;
+        requestedPreferredNameForAgentDestruction = preferredName;
+
+        agentDestructionRequestIssued = true;
     }
 
     Vector3 GetRandomPosition()
@@ -109,6 +124,37 @@ public class AgentManager : MonoBehaviour
         return true;
     }
 
+    public bool DestroyAgent(string hostname, int port, string preferredName)
+    {
+        int agentIdx = -1;
+
+        // Look for agent with this name
+        for (int i = 0; i < agents.Count; i++)
+        {
+            if (agents[i].preferredName == preferredName)
+            {
+                agentIdx = i;
+                break;
+            }
+        }
+
+        // Return an error if no agent exists with this name
+        if (agentIdx == -1)
+        {
+            return false;
+        }
+        else
+        {
+            // Remove agent from agents list and remove corresponding GameObject
+            agents[agentIdx].go.GetComponentInChildren<Camera>().targetTexture = null;
+            Destroy(agents[agentIdx].renderTextureForCamera);
+            Destroy(agents[agentIdx].go);
+            agents.RemoveAt(agentIdx);
+        }
+
+        return true;
+    }
+
     void TestAddingAgents()
     {
         List<Color> colors = new List<Color>() { Color.blue, Color.red, Color.green, Color.magenta, Color.cyan };
@@ -145,6 +191,7 @@ public class AgentManager : MonoBehaviour
     public void PublicStart()
     {
         agentCreationRequestIssued = false;
+        agentDestructionRequestIssued = false;
     }
 
     void Update()
@@ -157,6 +204,13 @@ public class AgentManager : MonoBehaviour
         if (agentCreationRequestIssued)
         {
             CreateAgent(requestedColorForAgentCreation, requestedHostnameForAgentCreation, requestedPortForAgentCreation, requestedPreferredNameForAgentCreation);
+
+            agentCreationRequestIssued = false;
+        }
+
+        if (agentDestructionRequestIssued)
+        {
+            DestroyAgent(requestedHostnameForAgentCreation, requestedPortForAgentCreation, requestedPreferredNameForAgentCreation);
 
             agentCreationRequestIssued = false;
         }
