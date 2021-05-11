@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using TMPro;
 using UnityEngine;
 
 public struct GraphNode
@@ -25,6 +26,8 @@ public class MapManager : MonoBehaviour
     public float maxZ;
     public int numNodesHorizontal;
     public int numNodesVertical;
+
+    public bool showNodeIndicesInUI;
 
     public int randomConnectionsToAddOnInit;
 
@@ -379,6 +382,16 @@ public class MapManager : MonoBehaviour
         for (int i = 0; i < graph.Count; i++)
         {
             globalIdxToGraphIdx.Add(graph[i].globalIdx, i);
+
+            // For debugging
+            if (showNodeIndicesInUI)
+            {
+                graph[i].go.GetComponentInChildren<TextMeshPro>().text = i.ToString();
+            }
+            else
+            {
+                graph[i].go.GetComponentInChildren<TextMeshPro>().text = "";
+            }
         }
     }
 
