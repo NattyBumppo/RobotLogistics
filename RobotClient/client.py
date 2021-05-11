@@ -8,6 +8,8 @@ import struct
 import sys
 import time
 
+import pathfinding
+
 class AgentRequestType(enum.IntEnum):
     REGISTRATION = 0
     REQUEST_FOR_WORK = 1
@@ -114,8 +116,9 @@ def parse_registration_response(data):
     graph_index = struct.unpack('!I', data[1:5])
     print('Got graph index of %s' % graph_index)
 
-    map_string = str(data[5:])
-    print(map_string)
+    map_string = data[5:].decode('ascii')
+    
+    my_map = pathfinding.parse_map_data_and_populate_map(map_string, graph_index)
 
 
 def connect_and_send_request(ip, port, request_data):
