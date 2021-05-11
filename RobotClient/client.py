@@ -124,9 +124,13 @@ def connect_and_send_request(ip, port, request_data):
     # Print to the console
     print('Received response from server (%s bytes)' % len(response_data))
 
-    response_data_as_str = ''.join(map(chr, response_data))
+    # response_data_as_str = ''.join(map(chr, response_data))
 
-    open('response.txt', 'wb').write(response_data)
+    # Grab my graph index
+    graph_index = struct.unpack('!I', response_data[1:5])
+    print('Got graph index of %s' % graph_index)
+
+    open('response.txt', 'wb').write(response_data[5:])
 
     client_socket.close()
 

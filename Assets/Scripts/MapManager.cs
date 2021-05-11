@@ -43,7 +43,7 @@ public class MapManager : MonoBehaviour
     List<GraphNode> graph = new List<GraphNode>();
     List<GameObject> nodeConnectors = new List<GameObject>();
 
-    Dictionary<int, int> globalIdxToGraphIdx = new Dictionary<int, int>();
+    public Dictionary<int, int> globalIdxToGraphIdx = new Dictionary<int, int>();
 
     public GraphNode GetRandomUnoccupiedNode()
     {
@@ -97,7 +97,9 @@ public class MapManager : MonoBehaviour
         StringBuilder sb = new StringBuilder();
 
         // HQ position
-        sb.Append(hqNodeCoordinateGlobalIdx + " " + hqNodeCoordinateHorizIdx + " " + hqNodeCoordinateVertIdx + "\n");
+        int hqGraphIdx = globalIdxToGraphIdx[hqNodeCoordinateGlobalIdx];
+        Vector3 hqPos = graph[hqGraphIdx].pos;
+        sb.Append(hqGraphIdx + " " + hqPos.x + " " + hqPos.y + " " + hqPos.z + "\n");
 
         // Number of nodes on next line
         sb.Append(graph.Count + "\n");
@@ -120,10 +122,11 @@ public class MapManager : MonoBehaviour
     {
         StringBuilder sb = new StringBuilder();
 
-        // Self as one line
+        // Self as one line (graphIdx then position)
         int thisNodeGraphIdx = globalIdxToGraphIdx[gn.globalIdx];
-        sb.Append(thisNodeGraphIdx + "\n");
-        
+        Vector3 thisNodePosition = graph[thisNodeGraphIdx].pos;
+        sb.Append(thisNodeGraphIdx + " " + thisNodePosition.x + " " + thisNodePosition.y + " " + thisNodePosition.z + "\n");
+
         // Neighbor indices and distances as another line
         if (gn.connectedNeighborGlobalIndices.Count > 0)
         {

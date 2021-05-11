@@ -86,7 +86,7 @@ public class AgentManager : MonoBehaviour
         return new Vector3(UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f));
     }
 
-    bool GetAgentByName(string preferredName, out AgentData agent)
+    public bool GetAgentByName(string preferredName, out AgentData agent)
     {
         agent = new AgentData();
 
@@ -125,7 +125,7 @@ public class AgentManager : MonoBehaviour
         GraphNode initialNode = mm.GetRandomUnoccupiedNode();
 
         ad.latestPosition = initialNode.pos;
-        ad.lastNodeIdxVisited = initialNode.globalIdx;
+        ad.lastNodeIdxVisited = mm.globalIdxToGraphIdx[initialNode.globalIdx];
 
         // Create visual representation for agent
         GameObject go = Instantiate(agentPrefab, initialNode.pos, Quaternion.identity);

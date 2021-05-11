@@ -275,7 +275,6 @@ public class NetworkServer : MonoBehaviour
                 stream.Write(response, 0, response.Length);
                 Debug.Log("Sent response (" + response.Length + "B)");
 
-
                 // Shutdown and end connection
                 client.Close();
             }
@@ -441,14 +440,32 @@ public class NetworkServer : MonoBehaviour
 
         while (am.agentCreationRequestIssued)
         {
-            // Wait for request to be procseed
+            // Wait for request to be processed
             Thread.Sleep(100);
+        }
+
+        // Attach the graph index of the agent to the payload
+        AgentData ad;
+        bool agentFound = am.GetAgentByName(preferredName, out ad);
+
+        if (!agentFound)
+        {
+            Debug.LogError("Error: couldn't find agent named " + preferredName + " after creation!");
+            ConstructResponse(WorkRequestResponseType.FAILURE_OTHER);
+        }
+
+        byte[] graphIdxBytes = BitConverter.GetBytes(ad.lastNodeIdxVisited);
+
+        // Reverse all data endianness if it's not in network byte order (big endian)
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(graphIdxBytes);
         }
 
         // Grab map as a string and attach as payload to response
         string mapString = mm.GraphToString();
 
-        return ConstructResponse(WorkRequestResponseType.SUCCESS, Encoding.ASCII.GetBytes(mapString));
+        return ConstructResponse(WorkRequestResponseType.SUCCESS, CombineByteArrays(graphIdxBytes, Encoding.ASCII.GetBytes(mapString)));
     }
 
     byte[] HandleWorkRequest(byte[] bytes)
@@ -533,12 +550,36 @@ public class NetworkServer : MonoBehaviour
 
     byte[] ConstructResponse(WorkRequestResponseType responseType /* no payload */)
     {
-        return new byte[] { (byte)responseType };
+        // Length is response type one byte
+        int packetLength = 1;
+
+        byte[] packetLengthBytes = BitConverter.GetBytes(packetLength);
+        // Reverse all data endianness if it's not in network byte order (big endian)
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(packetLengthBytes);
+        }
+
+        byte[] responseTypeBytes = new byte[1] { (byte)responseType };
+
+        return CombineByteArrays(packetLengthBytes, responseTypeBytes);
     }
 
     byte[] ConstructResponse(WorkRequestResponseType responseType, byte[] payload)
     {
-        return new byte[] { (byte)responseType };
+        // Length is one response type byte + payload
+        int packetLength = 1 + payload.Length;
+        byte[] packetLengthBytes = BitConverter.GetBytes(packetLength);
+
+        // Reverse all data endianness if it's not in network byte order (big endian)
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(packetLengthBytes);
+        }
+
+        byte[] responseTypeBytes = new byte[1] { (byte)responseType };
+
+        return CombineByteArrays(packetLengthBytes, responseTypeBytes, payload);
     }
 
     byte[] HandleRequestFromAgent(byte[] request, TcpClient clientInfo)
