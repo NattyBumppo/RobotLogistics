@@ -404,7 +404,7 @@ public class NetworkServer : MonoBehaviour
         if (bytes.Length != 32)
         {
             Debug.LogError("Error: bad byte length of " + bytes.Length);
-            return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+            return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
         }
 
         // Parse color and preferred name
@@ -448,27 +448,27 @@ public class NetworkServer : MonoBehaviour
         // Grab map as a file and attach as payload to response
 
 
-        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+        return ConstructResponse(bytes, WorkRequestResponseType.SUCCESS);
     }
 
     byte[] HandleWorkRequest(byte[] bytes)
     {
-        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+        return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_OTHER);
     }
 
     byte[] HandlePositionUpdate(byte[] bytes)
     {
-        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+        return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_OTHER);
     }
 
     byte[] HandleTaskComplete(byte[] bytes)
     {
-        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+        return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_OTHER);
     }
 
     byte[] HandleCameraDataRequest(byte[] bytes)
     {
-        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+        return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_OTHER);
     }
 
     byte[] HandleDeregistrationRequest(byte[] bytes, string hostname, int port)
@@ -477,7 +477,7 @@ public class NetworkServer : MonoBehaviour
         if (bytes.Length != 32)
         {
             Debug.LogError("Error: bad byte length of " + bytes.Length);
-            return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+            return ConstructResponse(bytes, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
         }
 
         // Parse preferred name
@@ -497,14 +497,10 @@ public class NetworkServer : MonoBehaviour
             Thread.Sleep(100);
         }
 
-
-        // Grab map as a file and attach as payload to response
-
-
-        return ConstructErrorMsg(bytes, WorkRequestResponseType.FAILURE_OTHER);
+        return ConstructResponse(bytes, WorkRequestResponseType.SUCCESS);
     }
 
-    byte[] ConstructErrorMsg(byte[] request, WorkRequestResponseType errorType)
+    byte[] ConstructResponse(byte[] request, WorkRequestResponseType errorType)
     {
         return new byte[] { (byte)errorType };
     }
@@ -540,7 +536,7 @@ public class NetworkServer : MonoBehaviour
                 break;
             default:
                 // Unrecognized request code; send back an error
-                return ConstructErrorMsg(request, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+                return ConstructResponse(request, WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
                 break;
 
         }

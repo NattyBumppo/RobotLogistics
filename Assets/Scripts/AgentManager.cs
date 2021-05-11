@@ -92,7 +92,7 @@ public class AgentManager : MonoBehaviour
         GraphNode initialNode = mm.GetRandomUnoccupiedNode();
 
         ad.latestPosition = initialNode.pos;
-        ad.lastNodeIdxVisited = initialNode.globalIndex;
+        ad.lastNodeIdxVisited = initialNode.globalIdx;
 
         // Create visual representation for agent
         GameObject go = Instantiate(agentPrefab, initialNode.pos, Quaternion.identity);

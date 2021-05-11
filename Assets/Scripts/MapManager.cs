@@ -5,10 +5,10 @@ using UnityEngine;
 
 public struct GraphNode
 {
-    public int globalIndex;
+    public int globalIdx;
     public int horizIdx;
     public int vertIdx;
-    public List<int> connectedNeighborIndices;
+    public List<int> connectedNeighborGlobalIndices;
     public List<int> connectorIndices;
     public Vector3 pos;
     public GameObject go;
@@ -43,6 +43,8 @@ public class MapManager : MonoBehaviour
     List<GraphNode> graph = new List<GraphNode>();
     List<GameObject> nodeConnectors = new List<GameObject>();
 
+    Dictionary<int, int> globalIdxToGraphIdx = new Dictionary<int, int>();
+
     public GraphNode GetRandomUnoccupiedNode()
     {
         // Just a reminder for this function, in case I forgot:
@@ -66,7 +68,7 @@ public class MapManager : MonoBehaviour
 
         while (nodesTriedCount < graph.Count)
         {
-            int curGlobalIdx = graph[curIdx].globalIndex;
+            int curGlobalIdx = graph[curIdx].globalIdx;
 
             if (!occupiedNodeIndices.Contains(curGlobalIdx) && hqNodeCoordinateGlobalIdx != curGlobalIdx)
             {
@@ -94,7 +96,10 @@ public class MapManager : MonoBehaviour
     {
         StringBuilder sb = new StringBuilder();
 
-        // Number of nodes on first line
+        // HQ position
+        sb.Append(hqNodeCoordinateGlobalIdx + " " + hqNodeCoordinateHorizIdx + " " + hqNodeCoordinateVertIdx + "\n");
+
+        // Number of nodes on next line
         sb.Append(graph.Count + "\n");
 
         // Subsequently, list all of the nodes
@@ -111,16 +116,23 @@ public class MapManager : MonoBehaviour
         StringBuilder sb = new StringBuilder();
 
         // Self as one line
-        sb.Append(gn.globalIndex + " " + gn.horizIdx + " " + gn.vertIdx + "\n");
+        int thisNodeGraphIdx = globalIdxToGraphIdx[gn.globalIdx];
+        sb.Append(thisNodeGraphIdx + "\n");
         
-        // Neighbor indices as another line
-        if (gn.connectedNeighborIndices.Count > 0)
+        // Neighbor indices and distances as another line
+        if (gn.connectedNeighborGlobalIndices.Count > 0)
         {
-            for (int neighborIdx = 0; neighborIdx < gn.connectedNeighborIndices.Count; neighborIdx++)
+            for (int neighborIdx = 0; neighborIdx < gn.connectedNeighborGlobalIndices.Count; neighborIdx++)
             {
-                sb.Append(gn.connectedNeighborIndices[neighborIdx]);
+                int neighborGlobalIdx = gn.connectedNeighborGlobalIndices[neighborIdx];
+                int neighorGraphIdx = globalIdxToGraphIdx[neighborGlobalIdx];
+                sb.Append(neighorGraphIdx + " ");
 
-                if (neighborIdx < gn.connectedNeighborIndices.Count - 1)
+                // Use literal distance for now
+                float dist = Vector3.Distance(graph[neighorGraphIdx].pos, gn.pos);
+                sb.Append(dist);
+
+                if (neighborIdx < gn.connectedNeighborGlobalIndices.Count - 1)
                 {
                     sb.Append(" ");
                 }
@@ -129,30 +141,30 @@ public class MapManager : MonoBehaviour
         }
         else
         {
-            Debug.LogError("Error: no neighbors for gn " + gn.globalIndex);
+            Debug.LogError("Error: no neighbors for gn " + gn.globalIdx);
         }
 
         return sb.ToString();
     }
 
-    bool ConnectNodes(int graphIdx0, int graphIdx1, bool skipConnectionIfCrowded)
+    bool ConnectNodes(int globalIdx0, int globalIdx1, bool skipConnectionIfCrowded)
     {
         // Skip if already connected
-        if ((graph[graphIdx0].connectedNeighborIndices.Contains(graphIdx1)) || (graph[graphIdx1].connectedNeighborIndices.Contains(graphIdx0)))
+        if ((graph[globalIdx0].connectedNeighborGlobalIndices.Contains(globalIdx1)) || (graph[globalIdx1].connectedNeighborGlobalIndices.Contains(globalIdx0)))
         {
             return false;
         }
 
         if (skipConnectionIfCrowded)
         {
-            if (graph[graphIdx0].connectedNeighborIndices.Count >= 3 || graph[graphIdx1].connectedNeighborIndices.Count >= 3)
+            if (graph[globalIdx0].connectedNeighborGlobalIndices.Count >= 3 || graph[globalIdx1].connectedNeighborGlobalIndices.Count >= 3)
             {
                 return false;
             }
         }
 
-        Vector3 startPos = graph[graphIdx0].pos;
-        Vector3 endPos = graph[graphIdx1].pos;
+        Vector3 startPos = graph[globalIdx0].pos;
+        Vector3 endPos = graph[globalIdx1].pos;
 
         float fractionalIncrease = 1.0f / (float)(nodeConnectorsPerConnection + 1);
 
@@ -166,21 +178,21 @@ public class MapManager : MonoBehaviour
             go.SetActive(false);
 
             // Add reference to these connectors so that we can turn them on later
-            graph[graphIdx0].connectorIndices.Add(nodeConnectors.Count);
+            graph[globalIdx0].connectorIndices.Add(nodeConnectors.Count);
 
             nodeConnectors.Add(go);
 
         }
 
-        graph[graphIdx0].connectedNeighborIndices.Add(graphIdx1);
-        graph[graphIdx1].connectedNeighborIndices.Add(graphIdx0);
+        graph[globalIdx0].connectedNeighborGlobalIndices.Add(globalIdx1);
+        graph[globalIdx1].connectedNeighborGlobalIndices.Add(globalIdx0);
 
         return true;
     }
 
     bool ConnectNodes(GraphNode gn0, GraphNode gn1, bool skipConnectionIfCrowded)
     {
-        return ConnectNodes(gn0.globalIndex, gn1.globalIndex, skipConnectionIfCrowded);
+        return ConnectNodes(gn0.globalIdx, gn1.globalIdx, skipConnectionIfCrowded);
     }
 
     int GetGlobalIndexFromCoordinates(int horizIdx, int vertIdx)
@@ -240,8 +252,8 @@ public class MapManager : MonoBehaviour
                 go.transform.SetParent(nodeParent);
 
                 GraphNode node = new GraphNode();
-                node.globalIndex = nodeCount;
-                node.connectedNeighborIndices = new List<int>();
+                node.globalIdx = nodeCount;
+                node.connectedNeighborGlobalIndices = new List<int>();
                 node.connectorIndices = new List<int>();
                 node.pos = nodePos;
                 node.go = go;
@@ -328,7 +340,7 @@ public class MapManager : MonoBehaviour
             
             // Activate node
             nodeToActivate.go.SetActive(true);
-            activatedNodeIndices.Add(nodeToActivate.globalIndex);
+            activatedNodeIndices.Add(nodeToActivate.globalIdx);
 
             // Activate connections
             foreach (int connectorIdx in nodeToActivate.connectorIndices)
@@ -337,7 +349,7 @@ public class MapManager : MonoBehaviour
             }
 
             // Add neighbors to list of nodes to activate, if they're still inactive
-            foreach (int neighborIdx in nodeToActivate.connectedNeighborIndices)
+            foreach (int neighborIdx in nodeToActivate.connectedNeighborGlobalIndices)
             {
                 if (!activatedNodeIndices.Contains(neighborIdx) && !nodesToActivateIndices.Contains(neighborIdx))
                 {
@@ -351,6 +363,15 @@ public class MapManager : MonoBehaviour
         Debug.Log("All nodes and connections activated!");
 
         RemoveUnconnectedNodes();
+        RecordGraphIndices();
+    }
+
+    void RecordGraphIndices()
+    {
+        for (int i = 0; i < graph.Count; i++)
+        {
+            globalIdxToGraphIdx.Add(graph[i].globalIdx, i);
+        }
     }
 
     void TestConnectingNeighbors()
@@ -366,7 +387,7 @@ public class MapManager : MonoBehaviour
 
             for (int n = 0; n < neighbors.Count; n++)
             {
-                ConnectNodes(neighbors[n].globalIndex, testNodeIdx, false);
+                ConnectNodes(neighbors[n].globalIdx, testNodeIdx, false);
             }
         }
     }
@@ -375,7 +396,7 @@ public class MapManager : MonoBehaviour
     {
         for (int i = 0; i < graph.Count; i++)
         {
-            if (graph[i].connectedNeighborIndices.Count == 0)
+            if (graph[i].connectedNeighborGlobalIndices.Count == 0)
             {
                 graph[i].go.SetActive(false);
             }
@@ -394,8 +415,9 @@ public class MapManager : MonoBehaviour
     {
         for (int i = graph.Count-1; i >= 0; i--)
         {
-            if (graph[i].connectedNeighborIndices.Count == 0)
+            if (graph[i].connectedNeighborGlobalIndices.Count == 0)
             {
+                Destroy(graph[i].go);
                 graph.RemoveAt(i);
             }
         }
