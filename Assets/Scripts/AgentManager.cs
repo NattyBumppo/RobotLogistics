@@ -7,6 +7,7 @@ public struct AgentData
 {
     public Color color;
     public string preferredName;
+    public string currentStatus;
     public string hostname;
     public int port;
     public Vector3 latestPosition;
@@ -47,10 +48,13 @@ public class AgentManager : MonoBehaviour
     public bool agentPositionUpdateRequestIssued;
 
     // Allow for asynchronous request and implementation of agent destruction
-    public string requestedHostnameForAgentDestructionn;
-    public int requestedPortForAgentDestruction;
     public string requestedPreferredNameForAgentDestruction;
     public bool agentDestructionRequestIssued;
+
+    // Allow to asynchronous request and implementation of agent status message updates
+    public string requestedStatusMessageForAgentStatusUpdate;
+    public string requestedPreferredNameForAgentStatusUpdate;
+    public bool agentStatusUpdateRequestIssued;
 
     public void RequestAgentCreation(Color color, string hostname, int port, string preferredName)
     {
@@ -74,13 +78,19 @@ public class AgentManager : MonoBehaviour
         agentPositionUpdateRequestIssued = true;
     }
 
-    public void RequestAgentDestruction(string hostname, int port, string preferredName)
+    public void RequestAgentDestruction(string preferredName)
     {
-        requestedHostnameForAgentDestructionn = hostname;
-        requestedPortForAgentDestruction = port;
         requestedPreferredNameForAgentDestruction = preferredName;
 
         agentDestructionRequestIssued = true;
+    }
+
+    public void RequestAgentStatusUpdate(string statusMessage, string preferredName)
+    {
+        requestedStatusMessageForAgentStatusUpdate = statusMessage;
+        requestedPreferredNameForAgentStatusUpdate = preferredName;
+
+        agentStatusUpdateRequestIssued = true;
     }
 
     Vector3 GetRandomPosition()
@@ -123,6 +133,7 @@ public class AgentManager : MonoBehaviour
         ad.hostname = hostname;
         ad.port = port;
         ad.preferredName = preferredName;
+        ad.currentStatus = "(Idle)";
 
         GraphNode initialNode = mm.GetRandomUnoccupiedNode();
 
@@ -135,13 +146,25 @@ public class AgentManager : MonoBehaviour
         go.name = ad.preferredName;
         go.transform.SetParent(agentParent);
 
-        // Set up text label
-        TextMeshPro tm = go.GetComponentInChildren<TextMeshPro>();
-        tm.text = ad.preferredName;
-        tm.outlineColor = color;
+        // Set up text labels
+        foreach (TextMeshPro tm in go.GetComponentsInChildren<TextMeshPro>())
+        {
+            if (tm.gameObject.name == "Name")
+            {
+                tm.text = ad.preferredName;
+            }
+            else if (tm.gameObject.name == "Status")
+            {
+                tm.text = ad.currentStatus;
+            }
 
-        // Color as specified
-        go.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", color);
+            tm.outlineColor = color;
+        }
+
+        // Color as specified (make a bit lighter to account for the unlit material
+        // for the gameObject
+        Color goColor = new Color(Mathf.Clamp(color.r + 0.5f, 0.0f, 1.0f), Mathf.Clamp(color.g + 0.5f, 0.0f, 1.0f), Mathf.Clamp(color.b + 0.5f, 0.0f, 1.0f));
+        go.GetComponent<MeshRenderer>().material.color = goColor;
 
         // No current task
         ad.currentTaskID = -1;
@@ -159,7 +182,7 @@ public class AgentManager : MonoBehaviour
         return true;
     }
 
-    public bool DestroyAgent(string hostname, int port, string preferredName)
+    public bool DestroyAgent(string preferredName)
     {
         int agentIdx = -1;
 
@@ -244,6 +267,28 @@ public class AgentManager : MonoBehaviour
 
     }
 
+    void UpdateStatusMessage(string agentPreferredName, string statusMessage)
+    {
+        AgentData ad;
+        bool agentFound = GetAgentByName(agentPreferredName, out ad);
+
+        if (agentFound)
+        {
+            foreach (TextMeshPro tm in ad.go.GetComponentsInChildren<TextMeshPro>())
+            {
+                if (tm.gameObject.name == "Status")
+                {
+                    ad.currentStatus = statusMessage;
+                    tm.text = ad.currentStatus;
+                }
+            }
+        }
+        else
+        {
+            Debug.LogError("Error: could not update status for agent " + agentPreferredName + " due to agent not existing!");
+        }
+    }
+
     public void PublicStart()
     {
         agentCreationRequestIssued = false;
@@ -274,9 +319,16 @@ public class AgentManager : MonoBehaviour
 
         if (agentDestructionRequestIssued)
         {
-            DestroyAgent(requestedHostnameForAgentCreation, requestedPortForAgentCreation, requestedPreferredNameForAgentCreation);
+            DestroyAgent(requestedPreferredNameForAgentCreation);
 
             agentDestructionRequestIssued = false;
+        }
+
+        if (agentStatusUpdateRequestIssued)
+        {
+            UpdateStatusMessage(requestedPreferredNameForAgentStatusUpdate, requestedStatusMessageForAgentStatusUpdate);
+
+            agentStatusUpdateRequestIssued = false;
         }
     }
 }

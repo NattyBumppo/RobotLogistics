@@ -644,7 +644,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1054112591}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -1, z: 0}
   m_LocalScale: {x: 3, y: 3, z: 3}
   m_Children: []
   m_Father: {fileID: 0}
@@ -739,10 +739,11 @@ MonoBehaviour:
   requestedFractionForAgentPositionUpdate: 0
   requestedPreferredNameForAgentPositionUpdate: 
   agentPositionUpdateRequestIssued: 0
-  requestedHostnameForAgentDestructionn: 
-  requestedPortForAgentDestruction: 0
   requestedPreferredNameForAgentDestruction: 
   agentDestructionRequestIssued: 0
+  requestedStatusMessageForAgentStatusUpdate: 
+  requestedPreferredNameForAgentStatusUpdate: 
+  agentStatusUpdateRequestIssued: 0
 --- !u!4 &1225118258
 Transform:
   m_ObjectHideFlags: 0
@@ -856,12 +857,12 @@ MonoBehaviour:
   am: {fileID: 1225118257}
   minX: -8
   maxX: 8
-  defaultY: 0.01
+  defaultY: 0.04
   minZ: -4
   maxZ: 4
-  numNodesHorizontal: 20
-  numNodesVertical: 16
-  showNodeIndicesInUI: 1
+  numNodesHorizontal: 24
+  numNodesVertical: 20
+  showNodeIndicesInUI: 0
   randomConnectionsToAddOnInit: 333
   nodePrefab: {fileID: 3886606292924516167, guid: 831d248d32640344e9c9a2a6986ae2e6, type: 3}
   nodeConnectorPrefab: {fileID: 2039174149898259267, guid: 7f26ed8e037e5934889c87c7f5decbec, type: 3}
@@ -869,6 +870,7 @@ MonoBehaviour:
   hqNodeCoordinateHorizIdx: 0
   hqNodeCoordinateVertIdx: 0
   hqNodeCoordinateGlobalIdx: 0
+  hqDefaultY: -0.1
   nodeConnectorsPerConnection: 5
   nodeParent: {fileID: 2059531601}
   nodeConnectorParent: {fileID: 1449445693}

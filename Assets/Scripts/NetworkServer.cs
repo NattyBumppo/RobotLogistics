@@ -19,7 +19,8 @@ public enum AgentRequestType
     POSITION_UPDATE,
     TASK_COMPLETE,
     REQUEST_FOR_CAMERA_DATA,
-    DEREGISTRATION
+    DEREGISTRATION,
+    STATUS_UPDATE
 }
 
 public enum WorkRequestResponseType
@@ -66,7 +67,7 @@ public class NetworkServer : MonoBehaviour
     private bool captureRequested = false;
     public Camera cameraForNextCapture;
 
-    private int DATA_REQUEST_PACKET_LENGTH_BYTES = 32;
+    private int DATA_REQUEST_PACKET_LENGTH = 64;
     private int DATA_RESPONSE_HEADER_LENGTH_BYTES = 14;
 
     public byte[] sensorDataByteBuffer;
@@ -227,7 +228,7 @@ public class NetworkServer : MonoBehaviour
             server.Start();
 
             // Buffer for reading data
-            Byte[] bytes = new Byte[DATA_REQUEST_PACKET_LENGTH_BYTES];
+            Byte[] bytes = new Byte[DATA_REQUEST_PACKET_LENGTH];
 
             // Enter the listening loop.
             while (true)
@@ -241,8 +242,6 @@ public class NetworkServer : MonoBehaviour
 
                 // Get a stream object for reading and writing
                 NetworkStream stream = client.GetStream();
-
-
 
                 // Loop to receive all the data sent by the client.
                 stream.Read(bytes, 0, bytes.Length);
@@ -400,8 +399,8 @@ public class NetworkServer : MonoBehaviour
 
     byte[] HandleRegistrationRequest(byte[] bytes, string hostname, int port)
     {
-        // Check length (should be 32 bytes; return error otherwise)
-        if (bytes.Length != 32)
+        // Check length (should be DATA_REQUEST_PACKET_MAX_LENGTH_BYTES bytes; return error otherwise)
+        if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
         {
             Debug.LogError("Error: bad byte length of " + bytes.Length);
             return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
@@ -475,8 +474,8 @@ public class NetworkServer : MonoBehaviour
 
     byte[] HandlePositionUpdate(byte[] bytes)
     {
-        // Check length (should be 32 bytes; return error otherwise)
-        if (bytes.Length != 32)
+        // Check length (should be DATA_REQUEST_PACKET_MAX_LENGTH_BYTES bytes; return error otherwise)
+        if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
         {
             Debug.LogError("Error: bad byte length of " + bytes.Length);
             return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
@@ -519,7 +518,7 @@ public class NetworkServer : MonoBehaviour
         return ConstructResponse(WorkRequestResponseType.FAILURE_OTHER);
     }
 
-    byte[] HandleDeregistrationRequest(byte[] bytes, string hostname, int port)
+    byte[] HandleDeregistrationRequest(byte[] bytes)
     {
         // Check length (should be 32 bytes; return error otherwise)
         if (bytes.Length != 32)
@@ -537,9 +536,39 @@ public class NetworkServer : MonoBehaviour
         Debug.Log("Parsed preferred name of " + preferredName);
 
         // Issue request to deregister new agent and wait
-        am.RequestAgentDestruction(hostname, port, preferredName);
+        am.RequestAgentDestruction(preferredName);
 
         while (am.agentDestructionRequestIssued)
+        {
+            // Wait for request to be procseed
+            Thread.Sleep(100);
+        }
+
+        return ConstructResponse(WorkRequestResponseType.SUCCESS);
+    }
+
+    byte[] HandleStatusUpdateRequest(byte[] bytes)
+    {
+        // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
+        if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
+        {
+            Debug.LogError("Error: bad byte length of " + bytes.Length);
+            return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+        }
+
+        byte[] agentStatusBytes = bytes.Skip(1).Take(31).ToArray();
+        byte[] preferredNameBytes = bytes.Skip(32).Take(16).ToArray();
+
+        // Convert data
+        string statusMessage = System.Text.Encoding.ASCII.GetString(agentStatusBytes).Trim();
+        string preferredName = System.Text.Encoding.ASCII.GetString(preferredNameBytes).Trim();
+
+        Debug.Log("Got status message of '" + statusMessage + "' for agent " + preferredName);
+
+        // Issue request to deregister new agent and wait
+        am.RequestAgentStatusUpdate(statusMessage, preferredName);
+
+        while (am.agentStatusUpdateRequestIssued)
         {
             // Wait for request to be procseed
             Thread.Sleep(100);
@@ -604,7 +633,9 @@ public class NetworkServer : MonoBehaviour
             case AgentRequestType.REQUEST_FOR_CAMERA_DATA:
                 return HandleCameraDataRequest(request);
             case AgentRequestType.DEREGISTRATION:
-                return HandleDeregistrationRequest(request, hostname, port);
+                return HandleDeregistrationRequest(request);
+            case AgentRequestType.STATUS_UPDATE:
+                return HandleStatusUpdateRequest(request);
             default:
                 // Unrecognized request code; send back an error
                 return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
@@ -624,9 +655,7 @@ public class NetworkServer : MonoBehaviour
     {
         byte[] response = new byte[255];
 
-
         // Ack sends back the ID of the sender and the succeed code
-
         return response;
     }
 
@@ -636,14 +665,12 @@ public class NetworkServer : MonoBehaviour
 
 
         // Ack sends back the ID of the sender and the logged position
-
         return response;
     }
 
     byte[] MakeResponseToTaskComplete()
     {
         byte[] response = new byte[255];
-
 
         return response;
     }
@@ -652,7 +679,6 @@ public class NetworkServer : MonoBehaviour
     byte[] MakeResponseToRequestForCameraData()
     {
         byte[] response = new byte[255];
-
 
         return response;
     }
