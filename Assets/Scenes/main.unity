@@ -612,7 +612,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mm: {fileID: 1284730858}
   am: {fileID: 1225118257}
-  timeBetweenTaskGenerationSeconds: 3
+  timeBetweenTaskGenerationSeconds: 10
   generateTasks: 1
   openTasksText: {fileID: 58456313}
   assignedTasksText: {fileID: 1186310973}

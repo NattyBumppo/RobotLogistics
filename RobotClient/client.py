@@ -246,45 +246,47 @@ def run(ip, port, robot_type, chosen_name=''):
     # Go from start index to HQ
     navigate(ip, port, my_map, initial_start_idx, my_map.hq_node.graph_idx, chosen_name, running_interval, '(Back to HQ)')
 
-    # Update status
-    my_status = '(Waiting for task)'
-    connect_and_update_status(ip, port, my_status, chosen_name)
+    while True:
 
-    # Send a request for a task
-    bytes_to_send = make_request_for_task_packet(chosen_name)
-    response = connect_and_send_request(ip, port, bytes_to_send)
-    task_name, destination_graph_index = parse_task_request_response(response)
+        # Update status
+        my_status = '(Waiting for task)'
+        connect_and_update_status(ip, port, my_status, chosen_name)
 
-    # Update status to load item
-    my_status = '(Loading %s)' % task_name
-    connect_and_update_status(ip, port, my_status, chosen_name)
+        # Send a request for a task
+        bytes_to_send = make_request_for_task_packet(chosen_name)
+        response = connect_and_send_request(ip, port, bytes_to_send)
+        task_name, destination_graph_index = parse_task_request_response(response)
 
-    # Perform load
-    for i in range(30):
-        time.sleep(loading_interval)
+        # Update status to load item
+        my_status = '(Loading %s)' % task_name
+        connect_and_update_status(ip, port, my_status, chosen_name)
 
-    # Go from HQ to delivery location
-    navigate(ip, port, my_map, my_map.hq_node.graph_idx, destination_graph_index, chosen_name, running_interval, '(Delivering %s)' % task_name)
+        # Perform load
+        for i in range(20):
+            time.sleep(loading_interval)
 
-    # Perform delivery
-    my_status = '(Handing off %s)' % task_name
-    connect_and_update_status(ip, port, my_status, chosen_name)    
-    
-    for i in range(30):
-        time.sleep(loading_interval)
+        # Go from HQ to delivery location
+        navigate(ip, port, my_map, my_map.hq_node.graph_idx, destination_graph_index, chosen_name, running_interval, '(Delivering %s)' % task_name)
 
-    # Inform server that task is complete
-    connect_and_send_task_complete_notification(ip, port, chosen_name)
+        # Perform delivery
+        my_status = '(Handing off %s)' % task_name
+        connect_and_update_status(ip, port, my_status, chosen_name)    
+        
+        for i in range(20):
+            time.sleep(loading_interval)
 
-    # Go from start index to HQ
-    navigate(ip, port, my_map, destination_graph_index, my_map.hq_node.graph_idx, chosen_name, running_interval, '(Back to HQ)')
+        # Inform server that task is complete
+        connect_and_send_task_complete_notification(ip, port, chosen_name)
+
+        # Go from start index to HQ
+        navigate(ip, port, my_map, destination_graph_index, my_map.hq_node.graph_idx, chosen_name, running_interval, '(Back to HQ)')
 
     connect_and_deregister(ip, port, chosen_name)
 
 def main():
     signal.signal(signal.SIGINT, signal_handler)
 
-    if len(sys.argv) != 4 and len(sys.argv != 5):
+    if len(sys.argv) != 4 and len(sys.argv) != 5:
         print('Please specify an IP address (first argument) and a port (second argument) and a robot type (third argument, either LOADER or RUNNER) and a name (optional)')
     elif len(sys.argv) == 4:
         run(sys.argv[1], int(sys.argv[2]), sys.argv[3])
