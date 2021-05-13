@@ -15,7 +15,14 @@ class Node:
         self.neighbor_indices_to_distances = {}
 
 def parse_map_data_and_populate_map(map_data, my_graph_index):
-    lines = map_data.split('\n')
+    uncleaned_lines = map_data.split('\n')
+
+    # Remove empty lines
+    lines = []
+    for line in uncleaned_lines:
+        line = line.strip()
+        if len(line) > 0:
+            lines.append(line)
 
     for i in range(5):
         print(i, ':', lines[i])

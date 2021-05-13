@@ -4,9 +4,16 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+public enum AgentType
+{
+    FAST_LOAD_SLOW_MOVE,
+    SLOW_LOAD_FAST_MOVE
+}
+
 public struct AgentData
 {
     public Color color;
+    public AgentType agentType;
     public string preferredName;
     public string currentStatus;
     public string hostname;
@@ -29,6 +36,7 @@ public struct DeliveryTask
 public class AgentManager : MonoBehaviour
 {
     public MapManager mm;
+    public TaskManager tm;
 
     public List<AgentData> agents = new List<AgentData>();
     public GameObject agentPrefab;
@@ -36,7 +44,6 @@ public class AgentManager : MonoBehaviour
     public RenderTexture baseRenderTexture;
 
     public Text agentCountText;
-    public int agentCount;
     public float timeInSecondsBeforeAgentIsStale;
 
     // Allow for asynchronous request and implementation of agent creation
@@ -64,7 +71,7 @@ public class AgentManager : MonoBehaviour
 
     void UpdateAgentCountText()
     {
-        agentCountText.text = agentCount == 1 ? "Active Agent: " + agentCount.ToString() : "Active Agents: " + agentCount.ToString();
+        agentCountText.text = agents.Count == 1 ? "Active Agent: " + agents.Count.ToString() : "Active Agents: " + agents.Count.ToString();
     }
 
     public void RequestAgentCreation(Color color, string hostname, int port, string preferredName)
@@ -125,6 +132,14 @@ public class AgentManager : MonoBehaviour
         return false;
     }
 
+    public float GetAgentDistanceNeglectingVerticalHeight(AgentData ad, Vector3 pos)
+    {
+        Vector2 adVec2 = new Vector2(ad.latestPosition.x, ad.latestPosition.z);
+        Vector2 posVec2 = new Vector2(pos.x, pos.z);
+
+        return Vector2.Distance(adVec2, posVec2);
+    }
+
     public bool CreateAgent(Color color, string hostname, int port, string preferredName)
     {
         // Don't allow agent to be created if preferred name is not unique
@@ -141,6 +156,21 @@ public class AgentManager : MonoBehaviour
         // Create object to store agent's data
         AgentData ad = new AgentData();
         ad.color = color;
+
+        // Agent type is hard-coded for now based on color
+        //
+        // Blue: slow load, fast move
+        // Red: fast load, slow move
+        //
+        if (ad.color == new Color(1.0f, 0.0f, 0.0f))
+        {
+            ad.agentType = AgentType.FAST_LOAD_SLOW_MOVE;
+        }
+        else
+        {
+            ad.agentType = AgentType.SLOW_LOAD_FAST_MOVE;
+        }
+
         ad.hostname = hostname;
         ad.port = port;
         ad.preferredName = preferredName;
@@ -187,12 +217,11 @@ public class AgentManager : MonoBehaviour
         ad.renderTextureForCamera = rt;
         go.GetComponentInChildren<Camera>().targetTexture = rt;
 
-        ad.idxInAgentsList = agentCount;
+        ad.idxInAgentsList = agents.Count;
 
         // Add to agents list so that we can keep track of it
         agents.Add(ad);
 
-        agentCount++;
         UpdateAgentCountText();
 
         return true;
@@ -210,7 +239,6 @@ public class AgentManager : MonoBehaviour
             Destroy(ad.go);
             agents.RemoveAt(indexInAgentsList);
 
-            agentCount--;
             UpdateAgentCountText();
 
             return true;
@@ -241,7 +269,6 @@ public class AgentManager : MonoBehaviour
             Destroy(ad.go);
             agents.RemoveAt(ad.idxInAgentsList);
 
-            agentCount--;
             UpdateAgentCountText();
         }
 
@@ -256,25 +283,7 @@ public class AgentManager : MonoBehaviour
         {
             CreateAgent(colors[UnityEngine.Random.Range(0, colors.Count)], "host" + i, 333, "Agent " + i);
         }
-
-        //CreateAgent(Color.blue, "host0", "Agent 0", 333, mm.GetRandomNodeInGraph().pos);
-        //CreateAgent(Color.blue, "host1", "Agent 1", 333, mm.GetRandomNodeInGraph().pos);
-        //CreateAgent(Color.red, "host2", "Agent 2", 333, mm.GetRandomNodeInGraph().pos);
     }
-
-    //public void UpdateAgentPosition(string agentPreferredName, Vector3 newPosition)
-    //{
-    //    foreach (AgentData ad in agents)
-    //    {
-    //        if (ad.preferredName == agentPreferredName)
-    //        {
-    //            ad.go.transform.position = newPosition;
-    //            return;
-    //        }
-    //    }
-
-    //    Debug.LogError("Error: could not update position for " + agentPreferredName + " (didn't find agent by that name)");
-    //}
 
     public void UpdateAgentPosition(string agentPreferredName, int startNodeGraphIdx, int endNodeGraphIdx, float fraction)
     {
@@ -292,6 +301,11 @@ public class AgentManager : MonoBehaviour
             ad.go.transform.position = newPos;
 
             ad.datetimeOfLastMessage = DateTime.UtcNow;
+
+            // Copy updated agent back into list
+            agents[ad.idxInAgentsList] = ad;
+
+            Debug.Log("Updated position of agent " + agentPreferredName + " to " + newPos);
         }
         else
         {
@@ -316,6 +330,9 @@ public class AgentManager : MonoBehaviour
             }
 
             ad.datetimeOfLastMessage = DateTime.UtcNow;
+
+            // Copy updated agent back into list
+            agents[ad.idxInAgentsList] = ad;
         }
         else
         {
@@ -329,7 +346,6 @@ public class AgentManager : MonoBehaviour
         agentDestructionRequestIssued = false;
         agentPositionUpdateRequestIssued = false;
 
-        agentCount = 0;
         UpdateAgentCountText();
     }
 
@@ -340,6 +356,16 @@ public class AgentManager : MonoBehaviour
         {
             if (DateTime.UtcNow.Subtract(agents[i].datetimeOfLastMessage).TotalSeconds > timeInSecondsBeforeAgentIsStale)
             {
+                // Re-allocate any task the agent might have
+                int currentTaskIdx = agents[i].currentTaskIdx;
+                if (currentTaskIdx != -1)
+                {
+                    Task taskToMove = tm.assignedTasks[currentTaskIdx];
+                    tm.openTasks.Add(taskToMove);
+                    tm.assignedTasks.RemoveAt(currentTaskIdx);
+                    tm.UpdateTaskCountText();
+                }
+
                 DestroyAgent(i);
             }
         }
@@ -355,28 +381,24 @@ public class AgentManager : MonoBehaviour
         if (agentCreationRequestIssued)
         {
             CreateAgent(requestedColorForAgentCreation, requestedHostnameForAgentCreation, requestedPortForAgentCreation, requestedPreferredNameForAgentCreation);
-
             agentCreationRequestIssued = false;
         }
 
         if (agentPositionUpdateRequestIssued)
         {
             UpdateAgentPosition(requestedPreferredNameForAgentPositionUpdate, requestedStartNodeGraphIdxForAgentPositionUpdate, requestedEndNodeGraphIdxForAgentPositionUpdate, requestedFractionForAgentPositionUpdate);
-
             agentPositionUpdateRequestIssued = false;
         }
 
         if (agentDestructionRequestIssued)
         {
             DestroyAgent(requestedPreferredNameForAgentCreation);
-
             agentDestructionRequestIssued = false;
         }
 
         if (agentStatusUpdateRequestIssued)
         {
             UpdateStatusMessage(requestedPreferredNameForAgentStatusUpdate, requestedStatusMessageForAgentStatusUpdate);
-
             agentStatusUpdateRequestIssued = false;
         }
 

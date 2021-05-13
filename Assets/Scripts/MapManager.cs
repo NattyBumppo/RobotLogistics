@@ -38,6 +38,7 @@ public class MapManager : MonoBehaviour
     public int hqNodeCoordinateHorizIdx;
     public int hqNodeCoordinateVertIdx;
     public int hqNodeCoordinateGlobalIdx;
+    public Vector3 hqNodePos;
     public float hqDefaultY;
 
     public int nodeConnectorsPerConnection;
@@ -301,9 +302,9 @@ public class MapManager : MonoBehaviour
         hqNodeCoordinateHorizIdx = numNodesHorizontal / 2;
         hqNodeCoordinateVertIdx = numNodesVertical / 2;
         hqNodeCoordinateGlobalIdx = GetGlobalIndexFromCoordinates(hqNodeCoordinateHorizIdx, hqNodeCoordinateVertIdx);
-        Vector3 hqPos = new Vector3(graph[hqNodeCoordinateGlobalIdx].pos.x, hqDefaultY, graph[hqNodeCoordinateGlobalIdx].pos.z);
+        hqNodePos = new Vector3(graph[hqNodeCoordinateGlobalIdx].pos.x, hqDefaultY, graph[hqNodeCoordinateGlobalIdx].pos.z);
 
-        GameObject hq = Instantiate(hqPrefab, hqPos, Quaternion.identity);
+        GameObject hq = Instantiate(hqPrefab, hqNodePos, Quaternion.identity);
 
         HideAllNodes();
         GenerateRandomConnections();

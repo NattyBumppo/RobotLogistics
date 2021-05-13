@@ -15,7 +15,7 @@ using UnityEngine.UI;
 public enum AgentRequestType
 {
     REGISTRATION,
-    REQUEST_FOR_WORK,
+    REQUEST_FOR_TASK,
     POSITION_UPDATE,
     TASK_COMPLETE,
     REQUEST_FOR_CAMERA_DATA,
@@ -26,7 +26,6 @@ public enum AgentRequestType
 public enum WorkRequestResponseType
 {
     SUCCESS,
-    FAILURE_AGENT_TOO_FAR,
     FAILURE_NO_TASKS,
     FAILURE_REQUEST_PARSING_ERROR,
     FAILURE_OTHER
@@ -367,25 +366,15 @@ public class NetworkServer : MonoBehaviour
     {
         StopServer();
     }
-
-
-
-
+    
     // Types of messages (requests from agents to server)
     //-Registration (response: ack with map of city)
     //-Request for work (response: task information or no task (along with succeed code, including "you're too far away" and "no tasks available"))
     //-Position update (response: ack)
     //-Task complete (response: ack)
-
-    //Request layout
-    //===
-    //First byte: request type
-
-    //For registration:
-
     byte[] HandleRegistrationRequest(byte[] bytes, string hostname, int port)
     {
-        // Check length (should be DATA_REQUEST_PACKET_MAX_LENGTH_BYTES bytes; return error otherwise)
+        // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
         if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
         {
             Debug.LogError("Error: bad byte length of " + bytes.Length);
@@ -455,12 +444,69 @@ public class NetworkServer : MonoBehaviour
 
     byte[] HandleWorkRequest(byte[] bytes)
     {
-        return ConstructResponse(WorkRequestResponseType.FAILURE_OTHER);
+        // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
+        if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
+        {
+            Debug.LogError("Error: bad byte length of " + bytes.Length);
+            return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+        }
+
+        // Parse preferred name
+        byte[] preferredNameBytes = bytes.Skip(1).Take(16).ToArray();
+        string preferredName = System.Text.Encoding.ASCII.GetString(preferredNameBytes).Trim();
+
+        Debug.Log("Parsed preferred name of " + preferredName);
+
+        // Fail immediately if no tasks are available
+        if (tm.openTasks.Count() == 0)
+        {
+            return ConstructResponse(WorkRequestResponseType.FAILURE_NO_TASKS);
+        }
+        else
+        {
+            // Issue request to attempt task assignment and wait
+            tm.RequestTaskAssignment(preferredName);
+
+            while (tm.taskAssignmentRequestIssued)
+            {
+                // Wait for request to be proceed
+                Thread.Sleep(100);
+            }
+
+            // Check if assignment was successful and respond accordingly
+            if (tm.taskAssignmentSuccessful)
+            {
+                // We'll send back the name of the task and its location
+
+                // Limit task name string to 32 bytes, just in case it's too long
+                Task assignedTask = tm.assignedTasks[tm.mostRecentAssignedTaskIdx];
+                int substringLength = Math.Min(32, assignedTask.name.Length);
+
+                string shortenedTaskName = assignedTask.name.Substring(0, substringLength).PadRight(32);
+                byte[] taskNameBytes = Encoding.ASCII.GetBytes(shortenedTaskName);
+                byte[] taskGraphIdxBytes = BitConverter.GetBytes((uint)mm.globalIdxToGraphIdx[assignedTask.destinationNode.globalIdx]);
+
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(taskGraphIdxBytes);
+                }
+
+                Debug.Log("Sending successful response to work request with " + taskNameBytes.Length + " bytes for name and " + taskGraphIdxBytes.Length + " bytes for graph index");
+
+                return ConstructResponse(WorkRequestResponseType.SUCCESS, CombineByteArrays(taskNameBytes, taskGraphIdxBytes));
+            }
+            else
+            {
+                Debug.Log("Sending failure response to work request");
+
+                return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+            }
+        }
     }
 
     byte[] HandlePositionUpdate(byte[] bytes)
     {
-        // Check length (should be DATA_REQUEST_PACKET_MAX_LENGTH_BYTES bytes; return error otherwise)
+        // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
         if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
         {
             Debug.LogError("Error: bad byte length of " + bytes.Length);
@@ -496,7 +542,29 @@ public class NetworkServer : MonoBehaviour
 
     byte[] HandleTaskComplete(byte[] bytes)
     {
-        return ConstructResponse(WorkRequestResponseType.FAILURE_OTHER);
+        // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
+        if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
+        {
+            Debug.LogError("Error: bad byte length of " + bytes.Length);
+            return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
+        }
+
+        // Parse preferred name
+        byte[] preferredNameBytes = bytes.Skip(1).Take(16).ToArray();
+        string preferredName = System.Text.Encoding.ASCII.GetString(preferredNameBytes).Trim();
+
+        Debug.Log("Parsed preferred name of " + preferredName);
+
+        // Issue request to to complete task and wait
+        tm.RequestTaskCompletion(preferredName);
+
+        while (tm.taskCompletionRequestIssued)
+        {
+            // Wait for request to be procseed
+            Thread.Sleep(100);
+        }
+
+        return ConstructResponse(WorkRequestResponseType.SUCCESS);
     }
 
     byte[] HandleCameraDataRequest(byte[] bytes)
@@ -506,8 +574,8 @@ public class NetworkServer : MonoBehaviour
 
     byte[] HandleDeregistrationRequest(byte[] bytes)
     {
-        // Check length (should be 32 bytes; return error otherwise)
-        if (bytes.Length != 32)
+        // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
+        if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
         {
             Debug.LogError("Error: bad byte length of " + bytes.Length);
             return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
@@ -515,8 +583,6 @@ public class NetworkServer : MonoBehaviour
 
         // Parse preferred name
         byte[] preferredNameBytes = bytes.Skip(1).Take(16).ToArray();
-
-        // Parse preferred name
         string preferredName = System.Text.Encoding.ASCII.GetString(preferredNameBytes).Trim();
 
         Debug.Log("Parsed preferred name of " + preferredName);
@@ -610,7 +676,7 @@ public class NetworkServer : MonoBehaviour
         {
             case AgentRequestType.REGISTRATION:
                 return HandleRegistrationRequest(request, hostname, port);
-            case AgentRequestType.REQUEST_FOR_WORK:
+            case AgentRequestType.REQUEST_FOR_TASK:
                 return HandleWorkRequest(request);
             case AgentRequestType.POSITION_UPDATE:
                 return HandlePositionUpdate(request);

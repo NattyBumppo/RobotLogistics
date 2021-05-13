@@ -12,7 +12,7 @@ import pathfinding
 
 class AgentRequestType(enum.IntEnum):
     REGISTRATION = 0
-    REQUEST_FOR_WORK = 1
+    REQUEST_FOR_TASK = 1
     POSITION_UPDATE = 2
     TASK_COMPLETE = 3
     REQUEST_FOR_CAMERA_DATA = 4
@@ -34,7 +34,7 @@ def recv_msg(sock):
     msglen = struct.unpack('!I', raw_msglen)[0]
     print('Got subsequent message length of %s' % msglen)
     # Read the message data (minus what was already read)
-    return recvall(sock, msglen-4)
+    return recvall(sock, msglen)
 
 def recvall(sock, n):
     print('recvall() for %s bytes' % n)
@@ -50,65 +50,6 @@ def recvall(sock, n):
         data.extend(packet)
     return data
 
-def parse_response_packet(data):
-    HEADER_SIZE = 14 - 4 # Already parsed 4 bytes when we read the packet size
-
-    # Check length
-    if len(data) < HEADER_SIZE:
-        print('Error: got too-short response packet of length %s' % len(data))
-        return False, [0, 0, 0, 0]
-
-    # Decode header
-    status_code_byte, sensor_type_byte, response_id, payload_size = struct.unpack('!BBII', data[:HEADER_SIZE])
-
-    # Check length of payload
-    payload = data[HEADER_SIZE:]
-    if len(payload) != payload_size:
-        print('Error: declared payload size (%s) doesn\'t match observed size (%s)' % (payload_size, len(payload)))
-        return False, [0, 0, 0, 0]
-
-    # Check header components
-    status_code = int(status_code_byte)
-    sensor_type = int(sensor_type_byte)
-
-    print('status_code (%s) unpacked' % status_code_byte)
-    print('sensor_type (%s) unpacked' % sensor_type)
-    print('response_id (%s) unpacked' % response_id)
-    print('payload_size (%s) unpacked' % payload_size)
-
-
-    if (status_code >= len(DataRequestStatusCode)):
-        print('Error: status_code (%s) not recognized' % status_code_byte)
-        return False, [0, 0, 0, 0]
-                
-    if (sensor_type >= len(DataRequestSensorType)):
-        print('Error: sensor_type (%s) not recognized' % sensor_type)
-        return False, [0, 0, 0, 0]
-    
-    # If we've gotten here, everything should be correct, so return the parsed data
-    return True, (DataRequestStatusCode(status_code), DataRequestSensorType(sensor_type), response_id, payload)
-
-def test_connect_and_send_request(ip, port):
-    
-    # Parse response
-    parse_success, (status_code, sensor_type, response_id, payload) = parse_response_packet(response_data)
-
-    print('parse_success: %s' % parse_success)
-    print('status_code: %s' % status_code)
-    print('sensor_type: %s' % sensor_type)
-    print('response_id: %s' % response_id)
-    print('payload length: %s' % len(payload))
-
-    # Write out payload
-    if parse_success and (status_code == DataRequestStatusCode.SUCCESS):
-        # time_as_str = datetime.now().strftime('%H_%M_%S_%f')
-        # save_payload(sensor_type, payload, sensor_as_string + '_dist_%s_m.' % dist + time_as_str)
-        print('Success!')
-    else:
-        print('Could not save payload due to error.')
-        print('Status code of %s means:' % status_code)
-        print(get_message_for_status_code(status_code))
-
 def parse_registration_response(data):
     # Get type of response
     response_type = DataRequestStatusCode(data[0])
@@ -117,19 +58,32 @@ def parse_registration_response(data):
     my_graph_index = struct.unpack('!I', data[1:5])[0]
     print('Got graph index of %s' % my_graph_index)
 
-    map_string = data[5:].decode('ascii')
+    map_string = data[5:].decode('ascii').strip()
     
     my_map = pathfinding.parse_map_data_and_populate_map(map_string, my_graph_index)
 
-    # print(my_map.node_list[3])
-    # print(my_map.node_list[10])
-
     return my_graph_index, my_map
 
-    # for i in range(5):
-    #     test_connect_and_update_position(sys.argv[1], int(sys.argv[2]), float(i) / 5.0, chosen_name)
-    #     time.sleep(0.1)
+def parse_task_request_response(data):
+    # Get type of response
+    response_type = DataRequestStatusCode(data[0])
 
+    # Grab name of task
+    task_name = data[1:33].decode('ascii').strip()
+
+    # Grab graph idx for destination node
+    print(len(data))
+    destination_graph_index = struct.unpack('!I', data[33:37])[0]
+
+    if (response_type == DataRequestStatusCode.SUCCESS):
+        print('Parsed a successful response to work request.')
+        print('Got a task of %s and destination of %s.' % (task_name, destination_graph_index))
+
+        return task_name, destination_graph_index
+    else:
+        print('Parsed a failure for work request.')
+
+        return '', -1
 
 def connect_and_send_request(ip, port, request_data):
     # Create a client socket
@@ -180,16 +134,32 @@ def make_registration_packet(my_color_rgb_float, my_preferred_name):
     # Pad to 64 bytes for consistent packet size
     return struct.pack('!B3f16s35x', AgentRequestType.REGISTRATION, my_color_rgb_float[0], my_color_rgb_float[1], my_color_rgb_float[2], my_preferred_name_bytes)
 
+def make_task_complete_packet(my_preferred_name):
+    # First byte is packet type
+    # Next 16 bytes are name (right-padded with spaces)
+    my_preferred_name_bytes = trim_and_pad_string_then_convert_to_bytes(my_preferred_name, 16)
+
+    # Pad to 64 bytes for consistent packet size
+    return struct.pack('!B16s47x', AgentRequestType.TASK_COMPLETE, my_preferred_name_bytes) 
+
 def make_deregistration_packet(my_preferred_name):
-    # First byte is registration type
+    # First byte is packet type
     # Next 16 bytes are name (right-padded with spaces)
     my_preferred_name_bytes = trim_and_pad_string_then_convert_to_bytes(my_preferred_name, 16)
 
     # Pad to 64 bytes for consistent packet size
     return struct.pack('!B16s47x', AgentRequestType.DEREGISTRATION, my_preferred_name_bytes)
 
+def make_request_for_task_packet(my_preferred_name):
+    # First byte is packet type
+    # Next 16 bytes are name (right-padded with spaces)
+    my_preferred_name_bytes = trim_and_pad_string_then_convert_to_bytes(my_preferred_name, 16)
+
+    # Pad to 64 bytes for consistent packet size
+    return struct.pack('!B16s47x', AgentRequestType.REQUEST_FOR_TASK, my_preferred_name_bytes)
+
 def make_status_update_packet(my_status, my_preferred_name):
-    # First byte is registration type
+    # First byte is packet type
     # Next 31 bytes are status (right-padded with spaces)
     my_status_bytes = trim_and_pad_string_then_convert_to_bytes(my_status, 31)
 
@@ -199,50 +169,15 @@ def make_status_update_packet(my_status, my_preferred_name):
     # Pad to 64 bytes for consistent packet size
     return struct.pack('!B31s16s16x', AgentRequestType.STATUS_UPDATE, my_status_bytes, preferred_name_bytes)
 
-def test_connect_and_register(ip, port):
-    chosen_name = random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase) + random.choice(string.ascii_uppercase)
-    bytes_to_send = make_registration_packet((0.0, 0.0, 1.0), chosen_name)
-    response = connect_and_send_request(ip, port, bytes_to_send)
-    my_graph_index, my_map = parse_registration_response(response)
-
-    start_idx = my_graph_index
-    goal_idx = my_map.hq_node.graph_idx
-
-    path = pathfinding.get_path(my_map.node_list[start_idx], my_map.node_list[goal_idx])
-
-    print('Here\'s the path we got from', my_map.node_list[start_idx].graph_idx, 'to', my_map.node_list[goal_idx].graph_idx)
-
-    # Unpack path
-    path_as_list = []
-    for node in path:
-        path_as_list.append(node)
-
-    # Update my status
-    my_status = '(Back to HQ)'
-    test_connect_and_update_status(ip, port, my_status, chosen_name)
-
-    # Follow and animate path
-    for i in range(len(path_as_list)-1):
-        start_node_graph_idx = path_as_list[i].graph_idx
-        end_node_graph_idx = path_as_list[i+1].graph_idx
-        
-        for j in range(4):
-            test_connect_and_update_position(sys.argv[1], int(sys.argv[2]), float(j) / 5.0, chosen_name, start_node_graph_idx, end_node_graph_idx)
-            time.sleep(0.05)
-
-    # Set to goal
-    test_connect_and_update_position(sys.argv[1], int(sys.argv[2]), 1.0, chosen_name, path_as_list[-2].graph_idx, path_as_list[-1].graph_idx)
-
-    my_status = '(Waiting for task)'
-    test_connect_and_update_status(ip, port, my_status, chosen_name)
-
-    return chosen_name
-
-def test_connect_and_deregister(ip, port, chosen_name):
+def connect_and_deregister(ip, port, chosen_name):
     bytes_to_send = make_deregistration_packet(chosen_name)
     connect_and_send_request(ip, port, bytes_to_send)
 
-def test_connect_and_update_status(ip, port, my_status, chosen_name):
+def connect_and_send_task_complete_notification(ip, port, chosen_name):
+    bytes_to_send = make_task_complete_packet(chosen_name)
+    connect_and_send_request(ip, port, bytes_to_send)
+
+def connect_and_update_status(ip, port, my_status, chosen_name):
     print('Updating status to ' + my_status)
 
     bytes_to_send = make_status_update_packet(my_status, chosen_name)
@@ -251,7 +186,7 @@ def test_connect_and_update_status(ip, port, my_status, chosen_name):
 
     connect_and_send_request(ip, port, bytes_to_send)
 
-def test_connect_and_update_position(ip, port, fraction, my_preferred_name, start_node_graph_idx, end_node_graph_idx):
+def connect_and_update_position(ip, port, fraction, my_preferred_name, start_node_graph_idx, end_node_graph_idx):
     bytes_to_send = make_position_update_packet(start_node_graph_idx, end_node_graph_idx, fraction, my_preferred_name)
     connect_and_send_request(ip, port, bytes_to_send)
 
@@ -259,19 +194,102 @@ def signal_handler(sig, frame):
     print('You pressed Ctrl+C')
     sys.exit(0)
 
+def navigate(server_ip, server_port, my_map, start_idx, end_idx, chosen_name, running_interval, status_msg):
+    path = pathfinding.get_path(my_map.node_list[start_idx], my_map.node_list[end_idx])
+
+    print('Here\'s the path we got from', my_map.node_list[start_idx].graph_idx, 'to', my_map.node_list[end_idx].graph_idx)
+
+    # Unpack path
+    path_as_list = []
+    for node in path:
+        path_as_list.append(node)
+
+    # Update my status
+    my_status = status_msg
+    connect_and_update_status(server_ip, server_port, my_status, chosen_name)
+
+    # Follow and animate path
+    for i in range(len(path_as_list)-1):
+        start_idx = path_as_list[i].graph_idx
+        end_idx = path_as_list[i+1].graph_idx
+        
+        for j in range(4):
+            connect_and_update_position(sys.argv[1], int(sys.argv[2]), float(j) / 5.0, chosen_name, start_idx, end_idx)
+            time.sleep(running_interval)
+
+    # Set to goal
+    connect_and_update_position(sys.argv[1], int(sys.argv[2]), 1.0, chosen_name, path_as_list[-2].graph_idx, path_as_list[-1].graph_idx)
+
+def run(ip, port, robot_type, chosen_name=''):
+    robot_type = robot_type.lower()
+
+    if robot_type == 'loader':
+        robot_color = (1.0, 0.0, 0.0)
+        name_prefix = 'L'
+        loading_interval = 0.1
+        running_interval = 0.2
+    elif robot_type == 'runner':
+        robot_color = (0.0, 0.0, 1.0)
+        name_prefix = 'R'
+        loading_interval = 0.2
+        running_interval = 0.1
+    else:
+        print('Error: unknown robot type %s' % robot_type)
+        return
+
+    if chosen_name == '':
+        chosen_name = name_prefix + random.choice(string.digits) + random.choice(string.digits) + random.choice(string.digits) + random.choice(string.digits)
+    bytes_to_send = make_registration_packet(robot_color, chosen_name)
+    response = connect_and_send_request(ip, port, bytes_to_send)
+    initial_start_idx, my_map = parse_registration_response(response)
+
+    # Go from start index to HQ
+    navigate(ip, port, my_map, initial_start_idx, my_map.hq_node.graph_idx, chosen_name, running_interval, '(Back to HQ)')
+
+    # Update status
+    my_status = '(Waiting for task)'
+    connect_and_update_status(ip, port, my_status, chosen_name)
+
+    # Send a request for a task
+    bytes_to_send = make_request_for_task_packet(chosen_name)
+    response = connect_and_send_request(ip, port, bytes_to_send)
+    task_name, destination_graph_index = parse_task_request_response(response)
+
+    # Update status to load item
+    my_status = '(Loading %s)' % task_name
+    connect_and_update_status(ip, port, my_status, chosen_name)
+
+    # Perform load
+    for i in range(30):
+        time.sleep(loading_interval)
+
+    # Go from HQ to delivery location
+    navigate(ip, port, my_map, my_map.hq_node.graph_idx, destination_graph_index, chosen_name, running_interval, '(Delivering %s)' % task_name)
+
+    # Perform delivery
+    my_status = '(Handing off %s)' % task_name
+    connect_and_update_status(ip, port, my_status, chosen_name)    
+    
+    for i in range(30):
+        time.sleep(loading_interval)
+
+    # Inform server that task is complete
+    connect_and_send_task_complete_notification(ip, port, chosen_name)
+
+    # Go from start index to HQ
+    navigate(ip, port, my_map, destination_graph_index, my_map.hq_node.graph_idx, chosen_name, running_interval, '(Back to HQ)')
+
+    connect_and_deregister(ip, port, chosen_name)
+
 def main():
     signal.signal(signal.SIGINT, signal_handler)
 
-    if len(sys.argv) != 3:
-        print('Please specify an IP address (first argument) and a port (second argument)')
+    if len(sys.argv) != 4 and len(sys.argv != 5):
+        print('Please specify an IP address (first argument) and a port (second argument) and a robot type (third argument, either LOADER or RUNNER) and a name (optional)')
+    elif len(sys.argv) == 4:
+        run(sys.argv[1], int(sys.argv[2]), sys.argv[3])
     else:
-        chosen_name = test_connect_and_register(sys.argv[1], int(sys.argv[2]))
-        # time.sleep(3)
-        # for i in range(11):
-            # test_connect_and_update_position(sys.argv[1], int(sys.argv[2]), float(i) / 10.0, chosen_name)
-            # time.sleep(0.5)
-        # time.sleep(2)
-        # test_connect_and_deregister(sys.argv[1], int(sys.argv[2]), chosen_name)
+        run(sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4])
 
 
 if __name__ == '__main__':
