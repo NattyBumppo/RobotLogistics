@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
@@ -60,7 +61,7 @@ public class MapManager : MonoBehaviour
 
         int startIdx = UnityEngine.Random.Range(0, graph.Count);
 
-        int curIdx = startIdx;
+        int curGraphIdx = startIdx;
         int nodesTriedCount = 0;
 
         List<int> occupiedNodeIndices = new List<int>();
@@ -72,21 +73,21 @@ public class MapManager : MonoBehaviour
 
         while (nodesTriedCount < graph.Count)
         {
-            int curGlobalIdx = graph[curIdx].globalIdx;
+            int curGlobalIdx = graph[curGraphIdx].globalIdx;
 
-            if (!occupiedNodeIndices.Contains(curGlobalIdx) && hqNodeCoordinateGlobalIdx != curGlobalIdx)
+            if (!occupiedNodeIndices.Contains(curGraphIdx) && hqNodeCoordinateGlobalIdx != curGlobalIdx)
             {
                 // Use this index
-                return graph[curIdx];
+                return graph[curGraphIdx];
             }
             else
             {
-                curIdx++;
+                curGraphIdx++;
                 nodesTriedCount++;
 
-                if (curIdx >= graph.Count)
+                if (curGraphIdx >= graph.Count)
                 {
-                    curIdx = 0;
+                    curGraphIdx = 0;
                 }
             }
         }
@@ -115,6 +116,16 @@ public class MapManager : MonoBehaviour
         }
 
         return sb.ToString();
+    }
+
+    public void ShowTaskOnNode(GraphNode destinationNode)
+    {
+        ((Behaviour)destinationNode.go.GetComponent("Halo")).enabled = true;
+    }
+
+    public void ClearTaskOnNode(GraphNode destinationNode)
+    {
+        ((Behaviour)destinationNode.go.GetComponent("Halo")).enabled = false;
     }
 
     public string GraphToString()
@@ -305,17 +316,17 @@ public class MapManager : MonoBehaviour
         while(connectionsMade < randomConnectionsToAddOnInit)
         {
             // Pick a random node in the nodes added so far
-            GraphNode newNode = nodesAddedSoFar[Random.Range(0, nodesAddedSoFar.Count)];
+            GraphNode newNode = nodesAddedSoFar[UnityEngine.Random.Range(0, nodesAddedSoFar.Count)];
 
             // Get its neighbors
             List<GraphNode> neighbors = GetPossibleNeighbors(newNode);
 
             // Pick a random neighbor
-            GraphNode neighborToConnect = neighbors[Random.Range(0, neighbors.Count)];
+            GraphNode neighborToConnect = neighbors[UnityEngine.Random.Range(0, neighbors.Count)];
 
             // Connect the two nodes, often (but not always) skipping when crowded,
             // to reduce the number of four-way intersections
-            bool skipIfCrowded = Random.value > 0.01f ? true : false;
+            bool skipIfCrowded = UnityEngine.Random.value > 0.01f ? true : false;
 
             bool connectionSuccessful = ConnectNodes(newNode, neighborToConnect, skipIfCrowded);
 
@@ -447,12 +458,17 @@ public class MapManager : MonoBehaviour
 
     public GraphNode GetRandomNodeInGraph()
     {
-        return graph[Random.Range(0, graph.Count)];
+        return graph[UnityEngine.Random.Range(0, graph.Count)];
     }
 
     public GraphNode GetNode(int graphIdx)
     {
         return graph[graphIdx];
+    }
+
+    public int GetNodeCount()
+    {
+        return graph.Count;
     }
 
     public void PublicStart()

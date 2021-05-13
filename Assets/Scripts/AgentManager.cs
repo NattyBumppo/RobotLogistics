@@ -104,10 +104,10 @@ public class AgentManager : MonoBehaviour
         agentStatusUpdateRequestIssued = true;
     }
 
-    Vector3 GetRandomPosition()
-    {
-        return new Vector3(UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f));
-    }
+    //Vector3 GetRandomPosition()
+    //{
+    //    return new Vector3(UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f));
+    //}
 
     public bool GetAgentByName(string preferredName, out AgentData agent)
     {

@@ -609,6 +609,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ac2b40b99a748e34a8f076ebe691e460, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  mm: {fileID: 1284730858}
   timeBetweenTaskGenerationSeconds: 10
   generateTasks: 1
   openTaskCountText: {fileID: 58456313}
@@ -734,10 +735,10 @@ RectTransform:
   m_Father: {fileID: 1457768132}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0.31931666, y: 0.061410177}
-  m_AnchoredPosition: {x: 641.62415, y: 73.83154}
-  m_SizeDelta: {x: 75.1088, y: 147.6639}
+  m_AnchorMin: {x: 0.60400003, y: 0}
+  m_AnchorMax: {x: 1, y: 0.29671863}
+  m_AnchoredPosition: {x: 94.03259, y: -52.09352}
+  m_SizeDelta: {x: -188.5365, y: -104.1871}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &998800969
 MonoBehaviour:
@@ -1045,6 +1046,7 @@ MonoBehaviour:
   baseRenderTexture: {fileID: 8400000, guid: c4cf885e87bd1ab4896022199ff69378, type: 2}
   agentCountText: {fileID: 1512692915}
   agentCount: 0
+  timeInSecondsBeforeAgentIsStale: 10
   requestedColorForAgentCreation: {r: 0, g: 0, b: 0, a: 0}
   requestedHostnameForAgentCreation: 
   requestedPortForAgentCreation: 0

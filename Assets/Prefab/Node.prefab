@@ -180,6 +180,7 @@ GameObject:
   - component: {fileID: 3886606292924516163}
   - component: {fileID: 3886606292924516164}
   - component: {fileID: 3886606292924516165}
+  - component: {fileID: 5737392285269349412}
   m_Layer: 0
   m_Name: Node
   m_TagString: Untagged
@@ -251,3 +252,15 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!122 &5737392285269349412
+Halo:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3886606292924516167}
+  m_Enabled: 0
+  m_Color:
+    serializedVersion: 2
+    rgba: 4278223770
+  m_Size: 0.2
