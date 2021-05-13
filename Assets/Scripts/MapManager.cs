@@ -118,14 +118,16 @@ public class MapManager : MonoBehaviour
         return sb.ToString();
     }
 
-    public void ShowTaskOnNode(GraphNode destinationNode)
+    public void ShowTaskOnNode(GraphNode destinationNode, Task task)
     {
         ((Behaviour)destinationNode.go.GetComponent("Halo")).enabled = true;
+        destinationNode.go.GetComponentInChildren<TextMeshPro>().text = "Ordered " + task.name;
     }
 
     public void ClearTaskOnNode(GraphNode destinationNode)
     {
         ((Behaviour)destinationNode.go.GetComponent("Halo")).enabled = false;
+        destinationNode.go.GetComponentInChildren<TextMeshPro>().text = "";
     }
 
     public string GraphToString()

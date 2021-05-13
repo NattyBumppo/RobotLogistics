@@ -44,7 +44,7 @@ public class TaskManager : MonoBehaviour
 
         UpdateTaskCountText();
 
-        mm.ShowTaskOnNode(newTask.destinationNode);
+        mm.ShowTaskOnNode(newTask.destinationNode, newTask);
 
         Debug.Log("Generated delivery task for " + newTask.name);
     }
