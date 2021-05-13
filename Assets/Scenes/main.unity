@@ -352,8 +352,6 @@ MonoBehaviour:
   ipTextToSet: 
   portTextToSet: 
   ipPortTextNeedsToBeSet: 0
-  cameraForNextCapture: {fileID: 0}
-  sensorDataByteBuffer: 
 --- !u!4 &299231821
 Transform:
   m_ObjectHideFlags: 0
@@ -612,14 +610,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mm: {fileID: 1284730858}
   am: {fileID: 1225118257}
-  timeBetweenTaskGenerationSeconds: 10
+  timeBetweenTaskGenerationSeconds: 7
   generateTasks: 1
   openTasksText: {fileID: 58456313}
   assignedTasksText: {fileID: 1186310973}
   completedTasksText: {fileID: 1716439529}
   maxDistFromGoalForRecognition: 0.1
   requestedPreferredNameForTaskAssignment: 
-  mostRecentAssignedTaskIdx: 0
+  mostRecentAssignedTaskGuid: 
   taskAssignmentRequestIssued: 0
   taskAssignmentSuccessful: 0
   requestedPreferredNameForTaskCompletion: 
@@ -1054,7 +1052,6 @@ MonoBehaviour:
   tm: {fileID: 854182065}
   agentPrefab: {fileID: 1244818035609986718, guid: 93606d326ea482948b7935e4229636e3, type: 3}
   agentParent: {fileID: 478221755}
-  baseRenderTexture: {fileID: 8400000, guid: c4cf885e87bd1ab4896022199ff69378, type: 2}
   agentCountText: {fileID: 1512692915}
   timeInSecondsBeforeAgentIsStale: 10
   requestedColorForAgentCreation: {r: 0, g: 0, b: 0, a: 0}

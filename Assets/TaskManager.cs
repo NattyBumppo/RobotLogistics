@@ -14,9 +14,8 @@ public struct Task
 {
     public TaskType taskType;
     public string name;
-    public int assigneeAgentIdx;
+    public string assigneeAgentPreferredName;
     public GraphNode destinationNode;
-    public int idxInTaskList;
 }
 
 public class TaskManager : MonoBehaviour
@@ -34,7 +33,7 @@ public class TaskManager : MonoBehaviour
     public float maxDistFromGoalForRecognition;
 
     public string requestedPreferredNameForTaskAssignment;
-    public int mostRecentAssignedTaskIdx;
+    public string mostRecentAssignedTaskGuid;
     public bool taskAssignmentRequestIssued;
     public bool taskAssignmentSuccessful;
 
@@ -43,15 +42,15 @@ public class TaskManager : MonoBehaviour
     public bool taskCompletionSuccessful;
 
     public List<Task> openTasks = new List<Task>();
-    public List<Task> assignedTasks = new List<Task>();
+    public Dictionary<string, Task> assignedTasksByGUID = new Dictionary<string, Task>();
     public List<Task> completedTasks = new List<Task>();
 
     private List<string> foodAdjectives = new List<string>() { "acidic", "appealing", "appetizing", "aromatic", "astringent", "aromatic", "baked", "balsamic", "beautiful", "bite-size", "bitter", "bland", "blended", "boiled", "briny", "brown", "burnt", "buttered", "caked", "candied", "caramelized", "cheesy", "chocolate", "cholesterol-free", "classic", "classy", "cold", "cool", "crafted", "creamed", "creamy", "crisp", "crunchy", "cured", "dazzling", "deep-fried", "delectable", "delicious", "distinctive", "doughy", "drizzle", "dried", "extraordinary", "famous", "fantastic", "fizzy", "flaky", "flavored", "flavorful", "fluffy", "fresh", "fried", "frozen", "fruity", "garlic", "generous", "gingery", "glazed", "golden", "gorgeous", "gourmet", "greasy", "grilled", "gritty", "halal", "honey", "hot", "icy", "infused", "insipid", "intense", "juicy", "jumbo", "kosher", "large", "lavish", "lean", "low-fat", "luscious", "marinated", "mashed", "mellow", "mild", "minty", "moist", "mouth-watering", "natural", "non-fat", "nutty", "oily", "organic", "overpowering", "peppery", "petite", "pickled", "piquant", "plain", "pleasant", "plump", "poached", "prickly", "pulpy", "pungent", "pureed", "rich", "roasted", "robust", "rotten", "rubbery", "saccharine", "salty", "savory", "sapid", "saporous", "sauteed", "savory", "scrumptious", "seared", "seasoned", "silky", "simmered", "sizzling", "smelly", "smoked", "smoky", "smothered", "sour", "southern-style", "special", "spiced", "spicy", "spiral-cut", "spongy", "stale", "steamed", "sticky", "strawberry-flavored", "stuffed", "succulent", "sugar-coated", "sugar-free", "sugared", "sugarless", "sugary", "superb", "sweet", "sweet-and-sour", "sweetened", "syrupy", "tangy", "tantalizing", "tart", "tasteless", "tasty", "tender", "terrific", "toasted", "tough", "treacly", "unflavored", "unsavory", "unseasoned", "vegan", "vegetarian", "vanilla", "velvety", "vinegary", "warm", "whipped", "wonderful", "yucky", "yummy", "zesty", "zingy" };
-    private List<string> foodNouns = new List<string>() { "burger", "sandwich", "hot dog", "cherry", "apple", "grapes", "orange", "olives", "watermelon", "carrot", "tomato", "peas", "salad", "vegetables", "pancake", "sausage", "eggs", "potato", "cookies", "fries", "candy", "okonomiyaki", "sushi", "tonkatsu", "ramen" };
+    private List<string> foodNouns = new List<string>() { "hamburger", "sandwich", "hot dog", "cherry", "apple", "grapes", "orange", "olives", "watermelon", "carrot", "tomato", "peas", "salad", "vegetables", "pancake", "sausage", "eggs", "potato", "cookies", "fries", "candy", "okonomiyaki", "sushi", "tonkatsu", "ramen", "arroz con leche", "flan", "ceviche", "nachos", "guacamole", "fajitas", "quesadillas", "salsa", "chicken and waffles", "red beans and rice", "pulled pork", "cornbread", "peach cobbler", "mashed potatoes", "Derby pie", "burgoo", "Ale-8-One", "fried catfish" };
 
     int GetTotalTaskCount()
     {
-        return openTasks.Count() + assignedTasks.Count() + completedTasks.Count();
+        return openTasks.Count() + assignedTasksByGUID.Count() + completedTasks.Count();
     }
 
     void GenerateTask()
@@ -81,14 +80,11 @@ public class TaskManager : MonoBehaviour
         newTask.name = GetRandomDeliveryItemName();
 
         // Task is initially unassigned
-        newTask.assigneeAgentIdx = -1;
+        newTask.assigneeAgentPreferredName = "";
 
         // Assign to random untasked node
         int untaskedNodeGraphIdx = GetRandomUntaskedNodeGraphIdx();
         newTask.destinationNode = mm.GetNode(untaskedNodeGraphIdx);
-
-        // Record index
-        newTask.idxInTaskList = taskIdx;
 
         return newTask;
     }
@@ -137,16 +133,17 @@ public class TaskManager : MonoBehaviour
 
     string GetRandomDeliveryItemName()
     {
-        string randomFoodAdjective = foodAdjectives[UnityEngine.Random.Range(0, foodAdjectives.Count)];
+        //string randomFoodAdjective = foodAdjectives[UnityEngine.Random.Range(0, foodAdjectives.Count)];
         string randomFoodNoun = foodNouns[UnityEngine.Random.Range(0, foodNouns.Count)];
 
-        return randomFoodAdjective + " " + randomFoodNoun;
+        //return randomFoodAdjective + " " + randomFoodNoun;
+        return randomFoodNoun;
     }
 
     public void UpdateTaskCountText()
     {
         openTasksText.text = openTasks.Count() == 1 ? "Open Task: " + openTasks.Count().ToString() : "Open Tasks: " + openTasks.Count().ToString();
-        assignedTasksText.text = assignedTasks.Count() == 1 ? "Assigned Task: " + assignedTasks.Count().ToString() : "Assigned Tasks: " + assignedTasks.Count().ToString();
+        assignedTasksText.text = assignedTasksByGUID.Count() == 1 ? "Assigned Task: " + assignedTasksByGUID.Count().ToString() : "Assigned Tasks: " + assignedTasksByGUID.Count().ToString();
         completedTasksText.text = completedTasks.Count() == 1 ? "Completed Task: " + completedTasks.Count().ToString() : "Completed Tasks: " + completedTasks.Count().ToString();
     }
 
@@ -176,7 +173,7 @@ public class TaskManager : MonoBehaviour
             return;
         }
 
-        Task agentTask = assignedTasks[ad.currentTaskIdx];
+        Task agentTask = assignedTasksByGUID[ad.currentTaskGUID];
 
         // Fail if agent is too far from destination node
         if (am.GetAgentDistanceNeglectingVerticalHeight(ad, agentTask.destinationNode.pos) > maxDistFromGoalForRecognition)
@@ -186,28 +183,31 @@ public class TaskManager : MonoBehaviour
         }
 
         // Fail if agent has no tasks
-        if (ad.currentTaskIdx == -1)
+        if (ad.currentTaskGUID == "")
         {
             taskCompletionSuccessful = false;
             return;
         }
 
-        CompleteTask(ad.currentTaskIdx, ad.idxInAgentsList);
+        CompleteTask(ad.currentTaskGUID, ad.preferredName);
     }
 
     public void HandleTaskAssignmentRequest()
     {
-        // Get agent
-        AgentData ad;
-        bool gotAgentSuccessfully = am.GetAgentByName(requestedPreferredNameForTaskAssignment, out ad);
-        
-        if (!gotAgentSuccessfully)
+        int agentIdx;
+
+        // Look for agent with this name
+        bool agentIdxFound = am.GetAgentIdxByName(requestedPreferredNameForTaskAssignment, out agentIdx);
+
+        if (!agentIdxFound)
         {
             Debug.LogError("failed to get agent " + requestedPreferredNameForTaskAssignment);
 
             taskAssignmentSuccessful = false;
             return;
         }
+
+        AgentData ad = am.agents[agentIdx];
 
         // Fail if agent is too far from HQ
         if (am.GetAgentDistanceNeglectingVerticalHeight(ad, mm.hqNodePos) > maxDistFromGoalForRecognition)
@@ -222,9 +222,9 @@ public class TaskManager : MonoBehaviour
         }
 
         // Fail if agent already has a task
-        if (ad.currentTaskIdx != -1)
+        if (ad.currentTaskGUID != "")
         {
-            Debug.LogError("Failed because agent already has a task");
+            Debug.LogError("Failed because agent " + ad.preferredName +" already has a task");
 
             taskAssignmentSuccessful = false;
             return;
@@ -256,7 +256,7 @@ public class TaskManager : MonoBehaviour
             taskIdxToAssign = openTasks.Count-1;
         }
 
-        AssignTask(taskIdxToAssign, ad.idxInAgentsList);
+        AssignTask(taskIdxToAssign, agentIdx);
 
         taskAssignmentSuccessful = true;
     }
@@ -266,37 +266,51 @@ public class TaskManager : MonoBehaviour
         AgentData agentToAssign = am.agents[agentIdx];
         Task taskToAssign = openTasks[oldTaskIdx];
 
-        agentToAssign.currentTaskIdx = taskToAssign.idxInTaskList;
-        taskToAssign.assigneeAgentIdx = agentToAssign.idxInAgentsList;
+        taskToAssign.assigneeAgentPreferredName = am.agents[agentIdx].preferredName;
 
         // Re-number task idx for agent and task itself
-        int newTaskIdx = assignedTasks.Count;
-        agentToAssign.currentTaskIdx = newTaskIdx;
-        taskToAssign.idxInTaskList = newTaskIdx;
+        string newTaskGUID = Guid.NewGuid().ToString();
+        agentToAssign.currentTaskGUID = newTaskGUID;
+
+        Debug.Log("Assigning new task to agent " + agentToAssign.preferredName + ": " + newTaskGUID);
 
         // Move task from open to assigned list and update agent
         openTasks.RemoveAt(oldTaskIdx);
-        assignedTasks.Add(taskToAssign);
+        assignedTasksByGUID.Add(newTaskGUID, taskToAssign);
         am.agents[agentIdx] = agentToAssign;
 
-        mostRecentAssignedTaskIdx = newTaskIdx;
+        mostRecentAssignedTaskGuid = newTaskGUID;
+
+        UpdateTaskCountText();
     }
 
-    private void CompleteTask(int taskIdx, int agentIdx)
+    private void CompleteTask(string taskGUID, string agentPreferredName)
     {
-        AgentData agentCompletingTask = am.agents[agentIdx];
-        Task taskToComplete = assignedTasks[taskIdx];
+        int agentIdx;
 
-        agentCompletingTask.currentTaskIdx = -1;
+        // Look for agent with this name
+        bool agentIdxFound = am.GetAgentIdxByName(agentPreferredName, out agentIdx);
 
-        am.agents[agentCompletingTask.idxInAgentsList] = agentCompletingTask;
+        if (!agentIdxFound)
+        {
+            Debug.LogError("Unable to find agent by name " + agentPreferredName + " so abandoning task completion.");
+        }
+
+        AgentData ad = am.agents[agentIdx];
+
+        Task taskToComplete = assignedTasksByGUID[taskGUID];
+
+        ad.currentTaskGUID = "";
+
+        am.agents[agentIdx] = ad;
 
         // Move task from assigned list to completed list
-        assignedTasks.RemoveAt(taskIdx);
+        assignedTasksByGUID.Remove(taskGUID);
         completedTasks.Add(taskToComplete);
 
         // Remove UI message showing task
-        mm.ClearTaskOnNode(taskToComplete.destinationNode);        
+        mm.ClearTaskOnNode(taskToComplete.destinationNode);
+        UpdateTaskCountText();
     }
 
     public void PublicStart()

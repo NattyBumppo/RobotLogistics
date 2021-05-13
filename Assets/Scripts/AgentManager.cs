@@ -20,12 +20,10 @@ public struct AgentData
     public int port;
     public Vector3 latestPosition;
     public GameObject go;
-    public int currentTaskIdx;
-    public RenderTexture renderTextureForCamera;
+    public string currentTaskGUID;
     public DateTime datetimeOfLastMessage;
     public int tasksCompleted;
     public int lastNodeIdxVisited;
-    public int idxInAgentsList;
 }
 
 public struct DeliveryTask
@@ -41,7 +39,6 @@ public class AgentManager : MonoBehaviour
     public List<AgentData> agents = new List<AgentData>();
     public GameObject agentPrefab;
     public Transform agentParent;
-    public RenderTexture baseRenderTexture;
 
     public Text agentCountText;
     public float timeInSecondsBeforeAgentIsStale;
@@ -86,7 +83,7 @@ public class AgentManager : MonoBehaviour
 
     public void RequestAgentPositionUpdate(int startNodeGraphIdx, int endNodeGraphIdx, float fraction, string preferredName)
     {
-        Debug.Log("Moving agent to fraction " + fraction + " between " + startNodeGraphIdx + " and " + endNodeGraphIdx);
+        //Debug.Log("Moving agent to fraction " + fraction + " between " + startNodeGraphIdx + " and " + endNodeGraphIdx);
 
         requestedStartNodeGraphIdxForAgentPositionUpdate = startNodeGraphIdx;
         requestedEndNodeGraphIdxForAgentPositionUpdate = endNodeGraphIdx;
@@ -111,10 +108,22 @@ public class AgentManager : MonoBehaviour
         agentStatusUpdateRequestIssued = true;
     }
 
-    //Vector3 GetRandomPosition()
-    //{
-    //    return new Vector3(UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f), UnityEngine.Random.Range(-1.0f, 1.0f));
-    //}
+
+    public bool GetAgentIdxByName(string preferredName, out int agentIdx)
+    {
+        agentIdx = -1;
+
+        for (int i = 0; i < agents.Count; i++)
+        {
+            if (agents[i].preferredName == preferredName)
+            {
+                agentIdx = i;
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public bool GetAgentByName(string preferredName, out AgentData agent)
     {
@@ -208,16 +217,9 @@ public class AgentManager : MonoBehaviour
         go.GetComponent<MeshRenderer>().material.color = goColor;
 
         // No current task
-        ad.currentTaskIdx = -1;
+        ad.currentTaskGUID = "";
         ad.datetimeOfLastMessage = DateTime.UtcNow;
         ad.tasksCompleted = 0;
-
-        // Make a render texture for the agent to draw to
-        RenderTexture rt = new RenderTexture(baseRenderTexture);
-        ad.renderTextureForCamera = rt;
-        go.GetComponentInChildren<Camera>().targetTexture = rt;
-
-        ad.idxInAgentsList = agents.Count;
 
         // Add to agents list so that we can keep track of it
         agents.Add(ad);
@@ -234,8 +236,6 @@ public class AgentManager : MonoBehaviour
             AgentData ad = agents[indexInAgentsList];
 
             // Remove agent from agents list and remove corresponding GameObject
-            ad.go.GetComponentInChildren<Camera>().targetTexture = null;
-            Destroy(ad.renderTextureForCamera);
             Destroy(ad.go);
             agents.RemoveAt(indexInAgentsList);
 
@@ -251,23 +251,21 @@ public class AgentManager : MonoBehaviour
 
     public bool DestroyAgent(string preferredName)
     {
-        AgentData ad;
+        int agentIdx;
 
         // Look for agent with this name
-        bool agentFound = GetAgentByName(preferredName, out ad);
+        bool agentIdxFound = GetAgentIdxByName(preferredName, out agentIdx);
 
         // Return an error if no agent exists with this name
-        if (!agentFound)
+        if (!agentIdxFound)
         {
             return false;
         }
         else
         {
             // Remove agent from agents list and remove corresponding GameObject
-            ad.go.GetComponentInChildren<Camera>().targetTexture = null;
-            Destroy(ad.renderTextureForCamera);
-            Destroy(ad.go);
-            agents.RemoveAt(ad.idxInAgentsList);
+            Destroy(agents[agentIdx].go);
+            agents.RemoveAt(agentIdx);
 
             UpdateAgentCountText();
         }
@@ -292,18 +290,22 @@ public class AgentManager : MonoBehaviour
 
         Vector3 newPos = Vector3.Lerp(startPos, endPos, fraction);
 
-        AgentData ad;
-        bool agentFound = GetAgentByName(agentPreferredName, out ad);
+        int agentIdx;
 
-        if (agentFound)
+        // Look for agent with this name
+        bool agentIdxFound = GetAgentIdxByName(agentPreferredName, out agentIdx);
+
+        if (agentIdxFound)
         {
+            AgentData ad = agents[agentIdx];
+
             ad.latestPosition = newPos;
             ad.go.transform.position = newPos;
 
             ad.datetimeOfLastMessage = DateTime.UtcNow;
 
             // Copy updated agent back into list
-            agents[ad.idxInAgentsList] = ad;
+            agents[agentIdx] = ad;
 
             Debug.Log("Updated position of agent " + agentPreferredName + " to " + newPos);
         }
@@ -315,11 +317,15 @@ public class AgentManager : MonoBehaviour
 
     void UpdateStatusMessage(string agentPreferredName, string statusMessage)
     {
-        AgentData ad;
-        bool agentFound = GetAgentByName(agentPreferredName, out ad);
+        int agentIdx;
 
-        if (agentFound)
+        // Look for agent with this name
+        bool agentIdxFound = GetAgentIdxByName(agentPreferredName, out agentIdx);
+
+        if (agentIdxFound)
         {
+            AgentData ad = agents[agentIdx];
+
             foreach (TextMeshPro tm in ad.go.GetComponentsInChildren<TextMeshPro>())
             {
                 if (tm.gameObject.name == "Status")
@@ -332,7 +338,7 @@ public class AgentManager : MonoBehaviour
             ad.datetimeOfLastMessage = DateTime.UtcNow;
 
             // Copy updated agent back into list
-            agents[ad.idxInAgentsList] = ad;
+            agents[agentIdx] = ad;
         }
         else
         {
@@ -357,12 +363,12 @@ public class AgentManager : MonoBehaviour
             if (DateTime.UtcNow.Subtract(agents[i].datetimeOfLastMessage).TotalSeconds > timeInSecondsBeforeAgentIsStale)
             {
                 // Re-allocate any task the agent might have
-                int currentTaskIdx = agents[i].currentTaskIdx;
-                if (currentTaskIdx != -1)
+                string currentTaskGUID = agents[i].currentTaskGUID;
+                if (currentTaskGUID != "")
                 {
-                    Task taskToMove = tm.assignedTasks[currentTaskIdx];
+                    Task taskToMove = tm.assignedTasksByGUID[currentTaskGUID];
                     tm.openTasks.Add(taskToMove);
-                    tm.assignedTasks.RemoveAt(currentTaskIdx);
+                    tm.assignedTasksByGUID.Remove(currentTaskGUID);
                     tm.UpdateTaskCountText();
                 }
 

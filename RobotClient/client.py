@@ -15,16 +15,14 @@ class AgentRequestType(enum.IntEnum):
     REQUEST_FOR_TASK = 1
     POSITION_UPDATE = 2
     TASK_COMPLETE = 3
-    REQUEST_FOR_CAMERA_DATA = 4
-    DEREGISTRATION = 5,
-    STATUS_UPDATE = 6
+    DEREGISTRATION = 4
+    STATUS_UPDATE = 5
 
 class DataRequestStatusCode(enum.IntEnum):
     SUCCESS = 0
-    FAILURE_AGENT_TOO_FAR = 1
-    FAILURE_NO_TASKS = 2
-    FAILURE_REQUEST_PARSING_ERROR = 3
-    FAILURE_OTHER = 4
+    FAILURE_NO_TASKS = 1
+    FAILURE_REQUEST_PARSING_ERROR = 2
+    FAILURE_OTHER = 3
 
 def recv_msg(sock):
     # Read message length and unpack it into an integer
@@ -54,6 +52,11 @@ def parse_registration_response(data):
     # Get type of response
     response_type = DataRequestStatusCode(data[0])
 
+    if response_type != DataRequestStatusCode.SUCCESS:
+        print('Error: received failure from server as response to registration.')
+
+        return False, None, None
+
     # Grab my graph index
     my_graph_index = struct.unpack('!I', data[1:5])[0]
     print('Got graph index of %s' % my_graph_index)
@@ -62,11 +65,16 @@ def parse_registration_response(data):
     
     my_map = pathfinding.parse_map_data_and_populate_map(map_string, my_graph_index)
 
-    return my_graph_index, my_map
+    return True, my_graph_index, my_map
 
 def parse_task_request_response(data):
     # Get type of response
     response_type = DataRequestStatusCode(data[0])
+
+    if response_type != DataRequestStatusCode.SUCCESS:
+        print('Error: received failure from server as response to work request.')
+
+        return response_type, None, None
 
     # Grab name of task
     task_name = data[1:33].decode('ascii').strip()
@@ -75,15 +83,11 @@ def parse_task_request_response(data):
     print(len(data))
     destination_graph_index = struct.unpack('!I', data[33:37])[0]
 
-    if (response_type == DataRequestStatusCode.SUCCESS):
-        print('Parsed a successful response to work request.')
-        print('Got a task of %s and destination of %s.' % (task_name, destination_graph_index))
+    print('Parsed a successful response to work request.')
+    print('Got a task of %s and destination of %s.' % (task_name, destination_graph_index))
 
-        return task_name, destination_graph_index
-    else:
-        print('Parsed a failure for work request.')
-
-        return '', -1
+    return response_type, task_name, destination_graph_index
+   
 
 def connect_and_send_request(ip, port, request_data):
     # Create a client socket
@@ -205,20 +209,19 @@ def navigate(server_ip, server_port, my_map, start_idx, end_idx, chosen_name, ru
         path_as_list.append(node)
 
     # Update my status
-    my_status = status_msg
-    connect_and_update_status(server_ip, server_port, my_status, chosen_name)
+    connect_and_update_status(server_ip, server_port, status_msg, chosen_name)
 
     # Follow and animate path
     for i in range(len(path_as_list)-1):
         start_idx = path_as_list[i].graph_idx
         end_idx = path_as_list[i+1].graph_idx
         
-        for j in range(4):
-            connect_and_update_position(sys.argv[1], int(sys.argv[2]), float(j) / 5.0, chosen_name, start_idx, end_idx)
+        for j in range(5):
+            connect_and_update_position(server_ip, server_port, float(j) / 5.0, chosen_name, start_idx, end_idx)
             time.sleep(running_interval)
 
     # Set to goal
-    connect_and_update_position(sys.argv[1], int(sys.argv[2]), 1.0, chosen_name, path_as_list[-2].graph_idx, path_as_list[-1].graph_idx)
+    connect_and_update_position(server_ip, server_port, 1.0, chosen_name, path_as_list[-2].graph_idx, path_as_list[-1].graph_idx)
 
 def run(ip, port, robot_type, chosen_name=''):
     robot_type = robot_type.lower()
@@ -241,7 +244,11 @@ def run(ip, port, robot_type, chosen_name=''):
         chosen_name = name_prefix + random.choice(string.digits) + random.choice(string.digits) + random.choice(string.digits) + random.choice(string.digits)
     bytes_to_send = make_registration_packet(robot_color, chosen_name)
     response = connect_and_send_request(ip, port, bytes_to_send)
-    initial_start_idx, my_map = parse_registration_response(response)
+    success, initial_start_idx, my_map = parse_registration_response(response)
+
+    if not success:
+        print('Error with registration, deregistering and exiting.')
+        return
 
     # Go from start index to HQ
     navigate(ip, port, my_map, initial_start_idx, my_map.hq_node.graph_idx, chosen_name, running_interval, '(Back to HQ)')
@@ -252,10 +259,31 @@ def run(ip, port, robot_type, chosen_name=''):
         my_status = '(Waiting for task)'
         connect_and_update_status(ip, port, my_status, chosen_name)
 
-        # Send a request for a task
-        bytes_to_send = make_request_for_task_packet(chosen_name)
-        response = connect_and_send_request(ip, port, bytes_to_send)
-        task_name, destination_graph_index = parse_task_request_response(response)
+        waiting_for_task = True
+        
+        while waiting_for_task:
+            # Send a request for a task
+            bytes_to_send = make_request_for_task_packet(chosen_name)
+            response = connect_and_send_request(ip, port, bytes_to_send)
+            response_type, task_name, destination_graph_index = parse_task_request_response(response)
+
+            print('Response type:', str(response_type))
+
+            if response_type == DataRequestStatusCode.FAILURE_NO_TASKS:
+                print('No tasks available!')
+        
+                my_status = '(Waiting for task)'
+                connect_and_update_status(ip, port, my_status, chosen_name)
+
+                # Wait for more tasks to become available
+                time.sleep(0.5)
+            elif response_type == DataRequestStatusCode.SUCCESS:
+                # Break out of loop
+                waiting_for_task = False
+            else: # Some other error occurred
+                print('Error with task request, exiting.')
+                connect_and_deregister(ip, port, chosen_name)
+                return
 
         # Update status to load item
         my_status = '(Loading %s)' % task_name

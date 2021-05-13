@@ -18,7 +18,6 @@ public enum AgentRequestType
     REQUEST_FOR_TASK,
     POSITION_UPDATE,
     TASK_COMPLETE,
-    REQUEST_FOR_CAMERA_DATA,
     DEREGISTRATION,
     STATUS_UPDATE
 }
@@ -46,72 +45,7 @@ public class NetworkServer : MonoBehaviour
     public string portTextToSet;
     public bool ipPortTextNeedsToBeSet = false;
 
-    private List<byte> captureBytes = new List<byte>();
-    private bool captureBytesReady = false;
-    //private DataRequestPacket captureRequestParameters = new DataRequestPacket();
-    private bool captureRequested = false;
-    public Camera cameraForNextCapture;
-
     private int DATA_REQUEST_PACKET_LENGTH = 64;
-    private int DATA_RESPONSE_HEADER_LENGTH_BYTES = 14;
-
-    public byte[] sensorDataByteBuffer;
-
-    private List<System.Diagnostics.Process> startedProcesses = new List<System.Diagnostics.Process>();
-
-    private void OnApplicationQuit()
-    {
-        // End processes, just in case
-        foreach (System.Diagnostics.Process p in startedProcesses)
-        {
-            if (p != null)
-            {
-                p.Kill();
-            }
-        }
-
-    }
-
-    private IEnumerator CaptureToBytes()
-    {
-        // Allow changes to apply
-        yield return new WaitForFixedUpdate();
-
-        // Remove array (hopefully, we'll get new sensor data)
-        sensorDataByteBuffer = new byte[0];
-
-        yield return SaveCameraImageToByteBuffer(cameraForNextCapture);
-
-        captureBytes = sensorDataByteBuffer.ToList();
-
-        Debug.Log("Captured " + captureBytes.Count + " bytes of data.");
-
-        captureBytesReady = true;
-    }
-
-    public IEnumerator SaveCameraImageToByteBuffer(Camera cam)
-    {
-        cam.Render();
-
-        yield return null;
-
-        RenderTexture activeRenderTexture = RenderTexture.active;
-        RenderTexture.active = cam.targetTexture;
-
-        Texture2D image = new Texture2D(cam.targetTexture.width, cam.targetTexture.height, TextureFormat.RGBA32, 0, true);
-        image.ReadPixels(new Rect(0, 0, cam.targetTexture.width, cam.targetTexture.height), 0, 0);
-        yield return null;
-
-        image.Apply();
-        yield return null;
-
-        RenderTexture.active = activeRenderTexture;
-
-        sensorDataByteBuffer = image.EncodeToPNG();
-        Destroy(image);
-        yield return null;
-    }
-
 
     private byte[] CombineByteArrays(params byte[][] arrays)
     {
@@ -133,12 +67,6 @@ public class NetworkServer : MonoBehaviour
 
     void Update()
     {
-        if (captureRequested)
-        {
-            StartCoroutine(CaptureToBytes());
-            captureRequested = false;
-        }
-
         if (ipPortTextNeedsToBeSet)
         {
             ipAndPortText.text = ipTextToSet + "\t\t " + portTextToSet;
@@ -218,46 +146,26 @@ public class NetworkServer : MonoBehaviour
             // Enter the listening loop.
             while (true)
             {
-                Debug.Log("Waiting for a connection... ");
+                //Debug.Log("Waiting for a connection... ");
 
                 // Perform a blocking call to accept requests.
                 // You could also use server.AcceptSocket() here.
                 TcpClient client = server.AcceptTcpClient();
-                Debug.Log("Connected!");
+                //Debug.Log("Connected!");
 
                 // Get a stream object for reading and writing
                 NetworkStream stream = client.GetStream();
 
                 // Loop to receive all the data sent by the client.
                 stream.Read(bytes, 0, bytes.Length);
-                Debug.Log("Received request (" + bytes.Length + "B) from client.");
-
-                // Parse request from client
-                //DataRequestPacket drp;
+                //Debug.Log("Received request (" + bytes.Length + "B) from client.");
 
                 byte[] response = HandleRequestFromAgent(bytes, client);
 
-                Debug.Log("Parse success? " + (response.Length > 0));
+                //Debug.Log("Parse success? " + (response.Length > 0));
 
-                //// Trigger test image
-                //captureBytesReady = false;
-                //captureRequested = true;
-                //captureRequestParameters = drp;
-
-                //// Wait for image to be processed
-                //while (!captureBytesReady)
-                //{
-                //    System.Threading.Thread.Sleep(100);
-                //}
-
-                //byte[] msg;
-
-                //// Make successful packet containing synthetic data payload
-                //msg = MakeDataResponsePacketBytes(WorkRequestResponseType.SUCCESS, drp.responseID, captureBytes.ToArray());
-
-                //byte[] msg = Encoding.Unicode.GetBytes("Received message successfully!");
                 stream.Write(response, 0, response.Length);
-                Debug.Log("Sent response (" + response.Length + "B)");
+                //Debug.Log("Sent response (" + response.Length + "B)");
 
                 // Shutdown and end connection
                 client.Close();
@@ -367,13 +275,10 @@ public class NetworkServer : MonoBehaviour
         StopServer();
     }
     
-    // Types of messages (requests from agents to server)
-    //-Registration (response: ack with map of city)
-    //-Request for work (response: task information or no task (along with succeed code, including "you're too far away" and "no tasks available"))
-    //-Position update (response: ack)
-    //-Task complete (response: ack)
     byte[] HandleRegistrationRequest(byte[] bytes, string hostname, int port)
     {
+        Debug.Log("RegistrationRequest");
+
         // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
         if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
         {
@@ -402,12 +307,8 @@ public class NetworkServer : MonoBehaviour
 
         Color color = new Color(r, g, b);
 
-        Debug.Log("Parsed new color of " + color);
-
         // Parse preferred name
         string preferredName = System.Text.Encoding.ASCII.GetString(preferredNameBytes).Trim();
-
-        Debug.Log("Parsed preferred name of " + preferredName);
 
         // Issue request to register new agent and wait
         am.RequestAgentCreation(color, hostname, port, preferredName);
@@ -415,7 +316,7 @@ public class NetworkServer : MonoBehaviour
         while (am.agentCreationRequestIssued)
         {
             // Wait for request to be processed
-            Thread.Sleep(100);
+            Thread.Sleep(10);
         }
 
         // Attach the graph index of the agent to the payload
@@ -444,6 +345,8 @@ public class NetworkServer : MonoBehaviour
 
     byte[] HandleWorkRequest(byte[] bytes)
     {
+        Debug.Log("WorkRequest");
+
         // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
         if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
         {
@@ -460,6 +363,8 @@ public class NetworkServer : MonoBehaviour
         // Fail immediately if no tasks are available
         if (tm.openTasks.Count() == 0)
         {
+            Debug.Log("Sending failure response to work request due to not enough tasks.");
+
             return ConstructResponse(WorkRequestResponseType.FAILURE_NO_TASKS);
         }
         else
@@ -470,7 +375,7 @@ public class NetworkServer : MonoBehaviour
             while (tm.taskAssignmentRequestIssued)
             {
                 // Wait for request to be proceed
-                Thread.Sleep(100);
+                Thread.Sleep(10);
             }
 
             // Check if assignment was successful and respond accordingly
@@ -479,7 +384,7 @@ public class NetworkServer : MonoBehaviour
                 // We'll send back the name of the task and its location
 
                 // Limit task name string to 32 bytes, just in case it's too long
-                Task assignedTask = tm.assignedTasks[tm.mostRecentAssignedTaskIdx];
+                Task assignedTask = tm.assignedTasksByGUID[tm.mostRecentAssignedTaskGuid];
                 int substringLength = Math.Min(32, assignedTask.name.Length);
 
                 string shortenedTaskName = assignedTask.name.Substring(0, substringLength).PadRight(32);
@@ -497,7 +402,7 @@ public class NetworkServer : MonoBehaviour
             }
             else
             {
-                Debug.Log("Sending failure response to work request");
+                Debug.Log("Sending failure response to work request due to parsing error");
 
                 return ConstructResponse(WorkRequestResponseType.FAILURE_REQUEST_PARSING_ERROR);
             }
@@ -506,6 +411,8 @@ public class NetworkServer : MonoBehaviour
 
     byte[] HandlePositionUpdate(byte[] bytes)
     {
+        Debug.Log("PositionUpdate");
+
         // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
         if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
         {
@@ -537,11 +444,19 @@ public class NetworkServer : MonoBehaviour
         // Move agent
         am.RequestAgentPositionUpdate(startNodeGraphIdx, endNodeGraphIdx, fraction, preferredName);
 
+        while (am.agentPositionUpdateRequestIssued)
+        {
+            // Wait for request to be procseed
+            Thread.Sleep(10);
+        }
+
         return ConstructResponse(WorkRequestResponseType.SUCCESS);
     }
 
     byte[] HandleTaskComplete(byte[] bytes)
     {
+        Debug.Log("TaskComplete");
+
         // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
         if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
         {
@@ -561,19 +476,16 @@ public class NetworkServer : MonoBehaviour
         while (tm.taskCompletionRequestIssued)
         {
             // Wait for request to be procseed
-            Thread.Sleep(100);
+            Thread.Sleep(10);
         }
 
         return ConstructResponse(WorkRequestResponseType.SUCCESS);
     }
 
-    byte[] HandleCameraDataRequest(byte[] bytes)
-    {
-        return ConstructResponse(WorkRequestResponseType.FAILURE_OTHER);
-    }
-
     byte[] HandleDeregistrationRequest(byte[] bytes)
     {
+        Debug.Log("DeregistrationRequest");
+
         // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
         if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
         {
@@ -593,7 +505,7 @@ public class NetworkServer : MonoBehaviour
         while (am.agentDestructionRequestIssued)
         {
             // Wait for request to be procseed
-            Thread.Sleep(100);
+            Thread.Sleep(10);
         }
 
         return ConstructResponse(WorkRequestResponseType.SUCCESS);
@@ -601,6 +513,8 @@ public class NetworkServer : MonoBehaviour
 
     byte[] HandleStatusUpdateRequest(byte[] bytes)
     {
+        Debug.Log("StatusUpdateRequest");
+
         // Check length (should be DATA_REQUEST_PACKET_LENGTH bytes; return error otherwise)
         if (bytes.Length != DATA_REQUEST_PACKET_LENGTH)
         {
@@ -623,7 +537,7 @@ public class NetworkServer : MonoBehaviour
         while (am.agentStatusUpdateRequestIssued)
         {
             // Wait for request to be procseed
-            Thread.Sleep(100);
+            Thread.Sleep(10);
         }
 
         return ConstructResponse(WorkRequestResponseType.SUCCESS);
@@ -682,8 +596,6 @@ public class NetworkServer : MonoBehaviour
                 return HandlePositionUpdate(request);
             case AgentRequestType.TASK_COMPLETE:
                 return HandleTaskComplete(request);
-            case AgentRequestType.REQUEST_FOR_CAMERA_DATA:
-                return HandleCameraDataRequest(request);
             case AgentRequestType.DEREGISTRATION:
                 return HandleDeregistrationRequest(request);
             case AgentRequestType.STATUS_UPDATE:
@@ -721,14 +633,6 @@ public class NetworkServer : MonoBehaviour
     }
 
     byte[] MakeResponseToTaskComplete()
-    {
-        byte[] response = new byte[255];
-
-        return response;
-    }
-
-
-    byte[] MakeResponseToRequestForCameraData()
     {
         byte[] response = new byte[255];
 
