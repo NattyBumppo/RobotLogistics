@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public struct AgentData
 {
@@ -17,6 +18,7 @@ public struct AgentData
     public DateTime datetimeOfLastMessage;
     public int tasksCompleted;
     public int lastNodeIdxVisited;
+    public int idxInAgentsList;
 }
 
 public struct DeliveryTask
@@ -32,6 +34,10 @@ public class AgentManager : MonoBehaviour
     public GameObject agentPrefab;
     public Transform agentParent;
     public RenderTexture baseRenderTexture;
+
+    public Text agentCountText;
+    public int agentCount;
+    public float timeInSecondsBeforeAgentIsStale;
 
     // Allow for asynchronous request and implementation of agent creation
     public Color requestedColorForAgentCreation;
@@ -55,6 +61,11 @@ public class AgentManager : MonoBehaviour
     public string requestedStatusMessageForAgentStatusUpdate;
     public string requestedPreferredNameForAgentStatusUpdate;
     public bool agentStatusUpdateRequestIssued;
+
+    void UpdateAgentCountText()
+    {
+        agentCountText.text = agentCount == 1 ? "Active Agent: " + agentCount.ToString() : "Active Agents: " + agentCount.ToString();
+    }
 
     public void RequestAgentCreation(Color color, string hostname, int port, string preferredName)
     {
@@ -176,38 +187,62 @@ public class AgentManager : MonoBehaviour
         ad.renderTextureForCamera = rt;
         go.GetComponentInChildren<Camera>().targetTexture = rt;
 
+        ad.idxInAgentsList = agentCount;
+
         // Add to agents list so that we can keep track of it
         agents.Add(ad);
+
+        agentCount++;
+        UpdateAgentCountText();
 
         return true;
     }
 
+    public bool DestroyAgent(int indexInAgentsList)
+    {
+        if (indexInAgentsList < agents.Count)
+        {
+            AgentData ad = agents[indexInAgentsList];
+
+            // Remove agent from agents list and remove corresponding GameObject
+            ad.go.GetComponentInChildren<Camera>().targetTexture = null;
+            Destroy(ad.renderTextureForCamera);
+            Destroy(ad.go);
+            agents.RemoveAt(indexInAgentsList);
+
+            agentCount--;
+            UpdateAgentCountText();
+
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
     public bool DestroyAgent(string preferredName)
     {
-        int agentIdx = -1;
+        AgentData ad;
 
         // Look for agent with this name
-        for (int i = 0; i < agents.Count; i++)
-        {
-            if (agents[i].preferredName == preferredName)
-            {
-                agentIdx = i;
-                break;
-            }
-        }
+        bool agentFound = GetAgentByName(preferredName, out ad);
 
         // Return an error if no agent exists with this name
-        if (agentIdx == -1)
+        if (!agentFound)
         {
             return false;
         }
         else
         {
             // Remove agent from agents list and remove corresponding GameObject
-            agents[agentIdx].go.GetComponentInChildren<Camera>().targetTexture = null;
-            Destroy(agents[agentIdx].renderTextureForCamera);
-            Destroy(agents[agentIdx].go);
-            agents.RemoveAt(agentIdx);
+            ad.go.GetComponentInChildren<Camera>().targetTexture = null;
+            Destroy(ad.renderTextureForCamera);
+            Destroy(ad.go);
+            agents.RemoveAt(ad.idxInAgentsList);
+
+            agentCount--;
+            UpdateAgentCountText();
         }
 
         return true;
@@ -227,19 +262,19 @@ public class AgentManager : MonoBehaviour
         //CreateAgent(Color.red, "host2", "Agent 2", 333, mm.GetRandomNodeInGraph().pos);
     }
 
-    public void UpdateAgentPosition(string agentPreferredName, Vector3 newPosition)
-    {
-        foreach (AgentData ad in agents)
-        {
-            if (ad.preferredName == agentPreferredName)
-            {
-                ad.go.transform.position = newPosition;
-                return;
-            }
-        }
+    //public void UpdateAgentPosition(string agentPreferredName, Vector3 newPosition)
+    //{
+    //    foreach (AgentData ad in agents)
+    //    {
+    //        if (ad.preferredName == agentPreferredName)
+    //        {
+    //            ad.go.transform.position = newPosition;
+    //            return;
+    //        }
+    //    }
 
-        Debug.LogError("Error: could not update position for " + agentPreferredName + " (didn't find agent by that name)");
-    }
+    //    Debug.LogError("Error: could not update position for " + agentPreferredName + " (didn't find agent by that name)");
+    //}
 
     public void UpdateAgentPosition(string agentPreferredName, int startNodeGraphIdx, int endNodeGraphIdx, float fraction)
     {
@@ -255,6 +290,8 @@ public class AgentManager : MonoBehaviour
         {
             ad.latestPosition = newPos;
             ad.go.transform.position = newPos;
+
+            ad.datetimeOfLastMessage = DateTime.UtcNow;
         }
         else
         {
@@ -282,6 +319,8 @@ public class AgentManager : MonoBehaviour
                     tm.text = ad.currentStatus;
                 }
             }
+
+            ad.datetimeOfLastMessage = DateTime.UtcNow;
         }
         else
         {
@@ -294,6 +333,21 @@ public class AgentManager : MonoBehaviour
         agentCreationRequestIssued = false;
         agentDestructionRequestIssued = false;
         agentPositionUpdateRequestIssued = false;
+
+        agentCount = 0;
+        UpdateAgentCountText();
+    }
+
+    // Remove agents that haven't been heard from in a while
+    private void CleanOutStaleAgents()
+    {
+        for (int i = agents.Count-1; i >=0; i--)
+        {
+            if (DateTime.UtcNow.Subtract(agents[i].datetimeOfLastMessage).TotalSeconds > timeInSecondsBeforeAgentIsStale)
+            {
+                DestroyAgent(i);
+            }
+        }
     }
 
     void Update()
@@ -330,5 +384,7 @@ public class AgentManager : MonoBehaviour
 
             agentStatusUpdateRequestIssued = false;
         }
+
+        CleanOutStaleAgents();
     }
 }
