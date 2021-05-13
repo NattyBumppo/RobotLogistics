@@ -118,10 +118,15 @@ public class MapManager : MonoBehaviour
         return sb.ToString();
     }
 
+    private string CapitalizeFirstChar(string s)
+    {
+        return s.Substring(0, 1).ToUpper() + s.Substring(1);
+    }
+
     public void ShowTaskOnNode(GraphNode destinationNode, Task task)
     {
         ((Behaviour)destinationNode.go.GetComponent("Halo")).enabled = true;
-        destinationNode.go.GetComponentInChildren<TextMeshPro>().text = "Ordered " + task.name;
+        destinationNode.go.GetComponentInChildren<TextMeshPro>().text = CapitalizeFirstChar(task.name) + "?";
     }
 
     public void ClearTaskOnNode(GraphNode destinationNode)
@@ -206,7 +211,6 @@ public class MapManager : MonoBehaviour
             graph[globalIdx0].connectorIndices.Add(nodeConnectors.Count);
 
             nodeConnectors.Add(go);
-
         }
 
         graph[globalIdx0].connectedNeighborGlobalIndices.Add(globalIdx1);
@@ -286,6 +290,8 @@ public class MapManager : MonoBehaviour
                 node.vertIdx = vertIdx;
 
                 graph.Add(node);
+
+                ClearTaskOnNode(node);
 
                 nodeCount++;
             }

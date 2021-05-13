@@ -14,6 +14,7 @@ public struct Task
     public string name;
     public int assigneeAgentIdx;
     public GraphNode destinationNode;
+    public int idxInTaskList;
 }
 
 public class TaskManager : MonoBehaviour
@@ -27,17 +28,26 @@ public class TaskManager : MonoBehaviour
     public int openTaskCount;
     public Text assignedTaskCountText;
     public int assignedTaskCount;
+    public Text completedTaskCountText;
+    public int completedTaskCount;
 
     public List<Task> tasks = new List<Task>();
 
-    private List<string> foodAdjectives = new List<string>() { "acidic", "appealing", "appetizing", "aromatic", "astringent", "aromatic", "baked", "balsamic", "beautiful", "bite-size", "bitter", "bland", "blended", "boiled", "briny", "brown", "burnt", "buttered", "caked", "candied", "caramelized", "cheesy", "chocolate", "cholesterol-free", "classic", "classy", "cold", "cool", "crafted", "creamed", "creamy", "crisp", "crunchy", "cured", "dazzling", "deep-fried", "delectable", "delicious", "distinctive", "doughy", "drizzle", "dried", "extraordinary", "famous", "fantastic", "filet", "fizzy", "flaky", "flavored", "flavorful", "fluffy", "fresh", "fried", "frozen", "fruity", "garlic", "generous", "gingery", "glazed", "golden", "gorgeous", "gourmet", "greasy", "grilled", "gritty", "halal", "honey", "hot", "icy", "infused", "insipid", "intense", "juicy", "jumbo", "kosher", "large", "lavish", "lean", "low-fat", "luscious", "marinated", "mashed", "mellow", "mild", "minty", "moist", "mouth-watering", "natural", "non-fat", "nutty", "oily", "organic", "overpowering", "peppery", "petite", "pickled", "piquant", "plain", "pleasant", "plump", "poached", "prickly", "pulpy", "pungent", "pureed", "rich", "roasted", "robust", "rotten", "rubbery", "saccharine", "salty", "savory", "sapid", "saporous", "sauteed", "savory", "scrumptious", "seared", "seasoned", "silky", "simmered", "sizzling", "smelly", "smoked", "smoky", "smothered", "sour", "southern-style", "special", "spiced", "spicy", "spiral-cut", "spongy", "stale", "steamed", "sticky", "strawberry-flavored", "stuffed", "succulent", "sugar-coated", "sugar-free", "sugared", "sugarless", "sugary", "superb", "sweet", "sweet-and-sour", "sweetened", "syrupy", "tangy", "tantalizing", "tart", "tasteless", "tasty", "tender", "terrific", "toasted", "tough", "treacly", "unflavored", "unsavory", "unseasoned", "vegan", "vegetarian", "vanilla", "velvety", "vinegary", "warm", "whipped", "wonderful", "yucky", "yummy", "zesty", "zingy" };
+    private List<string> foodAdjectives = new List<string>() { "acidic", "appealing", "appetizing", "aromatic", "astringent", "aromatic", "baked", "balsamic", "beautiful", "bite-size", "bitter", "bland", "blended", "boiled", "briny", "brown", "burnt", "buttered", "caked", "candied", "caramelized", "cheesy", "chocolate", "cholesterol-free", "classic", "classy", "cold", "cool", "crafted", "creamed", "creamy", "crisp", "crunchy", "cured", "dazzling", "deep-fried", "delectable", "delicious", "distinctive", "doughy", "drizzle", "dried", "extraordinary", "famous", "fantastic", "fizzy", "flaky", "flavored", "flavorful", "fluffy", "fresh", "fried", "frozen", "fruity", "garlic", "generous", "gingery", "glazed", "golden", "gorgeous", "gourmet", "greasy", "grilled", "gritty", "halal", "honey", "hot", "icy", "infused", "insipid", "intense", "juicy", "jumbo", "kosher", "large", "lavish", "lean", "low-fat", "luscious", "marinated", "mashed", "mellow", "mild", "minty", "moist", "mouth-watering", "natural", "non-fat", "nutty", "oily", "organic", "overpowering", "peppery", "petite", "pickled", "piquant", "plain", "pleasant", "plump", "poached", "prickly", "pulpy", "pungent", "pureed", "rich", "roasted", "robust", "rotten", "rubbery", "saccharine", "salty", "savory", "sapid", "saporous", "sauteed", "savory", "scrumptious", "seared", "seasoned", "silky", "simmered", "sizzling", "smelly", "smoked", "smoky", "smothered", "sour", "southern-style", "special", "spiced", "spicy", "spiral-cut", "spongy", "stale", "steamed", "sticky", "strawberry-flavored", "stuffed", "succulent", "sugar-coated", "sugar-free", "sugared", "sugarless", "sugary", "superb", "sweet", "sweet-and-sour", "sweetened", "syrupy", "tangy", "tantalizing", "tart", "tasteless", "tasty", "tender", "terrific", "toasted", "tough", "treacly", "unflavored", "unsavory", "unseasoned", "vegan", "vegetarian", "vanilla", "velvety", "vinegary", "warm", "whipped", "wonderful", "yucky", "yummy", "zesty", "zingy" };
     private List<string> foodNouns = new List<string>() { "burger", "sandwich", "hot dog", "cherry", "apple", "grapes", "orange", "olives", "watermelon", "carrot", "tomato", "peas", "salad", "vegetables", "pancake", "sausage", "eggs", "potato", "cookies", "fries", "candy", "okonomiyaki", "sushi", "tonkatsu", "ramen" };
+
+    int GetTotalTaskCount()
+    {
+        return openTaskCount + assignedTaskCount + completedTaskCount;
+    }
 
     void GenerateTask()
     {
         Debug.Log("Generating task...");
 
-        Task newTask = GetRandomTask();
+        int taskId = GetTotalTaskCount();
+
+        Task newTask = GetRandomTask(taskId);
         tasks.Add(newTask);
 
         openTaskCount++;
@@ -49,7 +59,7 @@ public class TaskManager : MonoBehaviour
         Debug.Log("Generated delivery task for " + newTask.name);
     }
 
-    Task GetRandomTask()
+    Task GetRandomTask(int taskIdx)
     {
         Task newTask;
 
@@ -65,6 +75,9 @@ public class TaskManager : MonoBehaviour
         // Assign to random untasked node
         int untaskedNodeGraphIdx = GetRandomUntaskedNodeGraphIdx();
         newTask.destinationNode = mm.GetNode(untaskedNodeGraphIdx);
+
+        // Record index
+        newTask.idxInTaskList = taskIdx;
 
         return newTask;
     }
@@ -123,6 +136,7 @@ public class TaskManager : MonoBehaviour
     {
         openTaskCountText.text = openTaskCount == 1 ? "Open Task: " + openTaskCount.ToString() : "Open Tasks: " + openTaskCount.ToString();
         assignedTaskCountText.text = assignedTaskCount == 1 ? "Assigned Task: " + assignedTaskCount.ToString() : "Assigned Tasks: " + assignedTaskCount.ToString();
+        completedTaskCountText.text = completedTaskCount == 1 ? "Completed Task: " + completedTaskCount.ToString() : "Completed Tasks: " + completedTaskCount.ToString();
     }
 
     IEnumerator GenerateTasks()
@@ -139,11 +153,17 @@ public class TaskManager : MonoBehaviour
         }
     }
 
-    
+    public void AssignTask(ref Task task, ref AgentData agent)
+    {
+        agent.currentTaskIdx = task.idxInTaskList;
+        task.assigneeAgentIdx = agent.idxInAgentsList;
+    }
+
     public void PublicStart()
     {
         openTaskCount = 0;
         assignedTaskCount = 0;
+        completedTaskCount = 0;
         UpdateTaskCountText();
 
         StartCoroutine(GenerateTasks());

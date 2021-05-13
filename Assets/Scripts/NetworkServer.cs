@@ -32,25 +32,11 @@ public enum WorkRequestResponseType
     FAILURE_OTHER
 }
 
-//[StructLayout(LayoutKind.Sequential, Pack = 1)]
-//public struct DataRequestPacket
-//{
-//    public UInt32 responseID;
-//}
-
-//public struct DataResponsePacket
-//{
-//    public Int32 packetLength;
-//    public WorkRequestResponseType responseType;
-//    public UInt32 responseID;
-//    public UInt32 payloadSize;
-//    public byte[] sensorDataPayload;
-//}
-
 public class NetworkServer : MonoBehaviour
 {
     public AgentManager am;
     public MapManager mm;
+    public TaskManager tm;
 
     public System.Threading.Thread SocketThread;
     TcpListener server = null;

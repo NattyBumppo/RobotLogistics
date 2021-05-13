@@ -13,7 +13,7 @@ public struct AgentData
     public int port;
     public Vector3 latestPosition;
     public GameObject go;
-    public int currentTaskID;
+    public int currentTaskIdx;
     public RenderTexture renderTextureForCamera;
     public DateTime datetimeOfLastMessage;
     public int tasksCompleted;
@@ -178,7 +178,7 @@ public class AgentManager : MonoBehaviour
         go.GetComponent<MeshRenderer>().material.color = goColor;
 
         // No current task
-        ad.currentTaskID = -1;
+        ad.currentTaskIdx = -1;
         ad.datetimeOfLastMessage = DateTime.UtcNow;
         ad.tasksCompleted = 0;
 
@@ -297,11 +297,6 @@ public class AgentManager : MonoBehaviour
         {
             Debug.LogError("Error: could not update position for agent " + agentPreferredName + " due to agent not existing!");
         }
-    }
-
-    void AssignTaskTo(int taskID, int agentID)
-    {
-
     }
 
     void UpdateStatusMessage(string agentPreferredName, string statusMessage)
